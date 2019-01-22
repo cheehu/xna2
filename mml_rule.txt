@@ -1,0 +1,95 @@
+QRA
+_0:<unit type>,[<unit index>|<unit group>,<unit index>]
+_1:[<plug-in unit type>, <plug-in unit index>]
+_2:<interface name>,[<VLAN vid>,<physical interface>,[<pri>| 0 def >, <cfi>| 0 def>]] | 
+                    [<AA U> | <AA N> | <N def>]] | 
+                    [<slave1> | el0 def], [<slave2> | el1 def], [<mac> | <system generated> def]]
+  ,[<fmac_mode> | 0 def]]
+                  
+_3:[<maximum transmission unit> | <interface default> def ]
+_4:[<administrative state> | <current> def], [FCD];
+
+
+ZQRA:_0_IPDU,0&&1:_1_:_2_EL0:_3_:_4_UP:;
+ZQRA:IPDU,0&&1::EL1::UP:;
+
+ZQRA:_0_IPDU,0&&1:_1_:_2_BOND0,EL0,EL1:;
+
+ZQRA:IPDU,0&&1::_2_VLAN400,400,BOND0,,::UP;
+
+ZQRA:IPDU,0&&1::VLAN510,510,BOND0,,::UP:;
+ZQRA:IPDU,0&&1::VLAN600,600,BOND0,,::UP:;
+
+ZQRP:IPDU,0::BOND0:”EL0”:;
+ZQRP:IPDU,1::BOND0:”EL0”:;
+
+
+QRN
+:<unit type>, [<unit index> | <unit group> , <unit index>]
+:[<plug-in unit type>, <plug-in unit index>]
+:<interface name>, [<redundant ip address interface name>]
+:<IP address>, [ <IPv4 netmask length> | 8/16/24 def | <IPv6 prefix length> | <64> def ], 
+               [[IP address type <L> | <P> | <L> def ] ,
+               [<attributes <V> | <I> | <D> | <M> | <C>]]
+:[ <destination IP address> ];
+
+
+ZQRN:IPDU,0&&1::VLAN400,:"169.254.0.230",23,P,I::;
+ZQRN:IPDU,0::VLAN400,:"169.254.0.1",23,L,I::;
+ZQRN:IPDU,0::VLAN400,:"fd00:db8:1234:400::1",64,L,I::;
+
+
+
+QKC
+: <unit type>, [ <unit index...> | [ <unit group>, <unit index...> ] ]
+: <plug-in unit type>, <plug-in unit index>
+: [ <destination IP address> | <default route> def,[ <netmask length> | 0 def]]
+: <gateway IP address>
+: [ <route type> | PHY def ],[<source IP address>];
+
+
+ZQKC:CCSU,0:::"1.2.3.2":PHY;
+ZQKC:CM,0::"10.12.18.128",26:"10.12.18.6":LOG;
+
+
+QKA
+: <route number>
+: <unit type>, [ <unit index...> | [ <unit group>, <unit index...> ] ]
+: <plug-in unit type>, <plug-in unit index>;
+
+ZQKA:2;
+
+
+NRD:NA0,400,HKI;
+
+'ZNRB:',ckey,':',concat(IF(para="","",concat("PARA=",para)),IF(lsh="","",concat("LOAD=",lsh)),IF(aopc="","",concat("AOPC=",aopc)))
+'ZNRB:',ckey ',:',para,load,':',IF(para='','',concat('para=',para)),IF(load='','',concat('load=',load))','IF(aopc='','',concat('aopc=',aopc))':'rou,prio
+
+'ZNRB:'ckey',:'para,load':'IF(para='','',concat('para=',para)),IF(load='','',concat('load=',load))','IF(aopc='','',concat('aopc=',aopc))':'rou,prio
+
+
+'"ZNRC:" 0 "," 1 ",:" 2 ";"','"ZNRD:" 0 ";"','"ZNRB:" 0 ":" 1* ";"'
+
+'"ZNRC:" 0 "," 1 ",:" 2 ";"','"ZNRD:" 0 ";"','"ZNRB:" 0 ":" 1* ";"'
+"ZNRC:",ckey_0,",",para_1,load_1,",:",rou_2,prio_2,";"
+
+"ZNRC:",mid(concat(concat(",",ckey_0)),2),",",mid(concat(concat(",",para_1),concat(",",load_1)),2),",:",mid(concat(concat(",",rou_2),concat(",",prio_2)),2),";"
+
+"ZNRC:",mid(,ckey_0,2),",",mid(,para_1,,load_1,2),",:",mid(,rou_2,,prio_2,2),";"
+
+"ZNRB:",ckey_0,":",mid(concat(IF(para_1="","",concat(",para=",para_1)),IF(load_1="","",concat(",load=",load_1))),2),";"
+
+'"ZNRB:" 0 ":" 1* ";"','""','"ZNRB:" 0 ":" 1* ";"'
+
+"'ZQRA:',ckey,'::',sta,';'","'ZQRG:',ckey,';'","'ZQRA:',ckey,'::',sta,';'"
+'"ZQRA:" 0 "::" 1 ";"','"ZQRG:" 0 ";"','"ZQRA:" 0 "::" 1 ";"'
+'"ZQRA:" 0 "::" 1 ";"','"ZQRG:" 0 ";"','"ZQRA:" 0 "::" 1 ";"'
+
+"'ZQRN:',ckey,';'","'ZQRG:',ckey,';'","''"
+'"ZQRN:" 0 ";"','"ZQRG:" 0 ";"','""'
+
+'"ZQKC:",ckey,";"',"'ZQKA:',nbr,';'","''"
+'"ZQKC:" 0 ";"','"ZQKA:" 1 ";"','""'
+
+
+

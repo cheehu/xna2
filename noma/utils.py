@@ -1,0 +1,314 @@
+import os, glob, pandas as pd
+from django.conf import settings
+from django.db import connection, connections
+import re, mmap, json, codecs
+import noma.tfunc
+
+def nomaInfo(nomagrp, id, nomaset):
+    grp = nomagrp.objects.get(pk=int(id))
+    sdir = os.path.normpath(grp.sdir) + "\\"
+    log_content = "NOMA Group:%s gtag:%s\n From Source DIR: %s\n\n" % (grp.name, grp.gtag, sdir)
+    grpsets = grp.sets.all()
+    for grpset in grpsets:
+        set = nomaset.objects.get(name=grpset.set)
+        log_content = log_content + "Execute NOMA Set: " + set.name + "\n"
+        log_content = log_content + "   Set Type : " + set.type + "\n"
+        log_content = log_content + "   Target Table: " + grpset.ttbl + "\n"
+        sfile = sdir + grpset.sfile
+        log_content = log_content + "   Source Files: " + sfile + "\n"   
+        sfiles = glob.glob(sfile)
+        if sfiles:
+            for sfile in sfiles:
+                log_content = log_content + "       " + os.path.basename(sfile)  + "\n"
+        else:
+            log_content = log_content + "       No file matching " + grpset.sfile + "\n"
+        log_content = log_content + "   NOMA Actions Sequences:\n"
+        for act in set.acts.all():
+            log_content = log_content + "       " + str(act.seq)  + " - " +  str(act.fname) + "\n"
+        log_content = log_content + "\n"
+    return log_content
+
+def nomaCount(nomagrp, id, nomaset):
+    grp = nomagrp.objects.get(pk=int(id))
+    sdir = os.path.normpath(grp.sdir) + "\\"
+    grpsets = grp.sets.all()
+    task_count = 0
+    for grpset in grpsets:
+        set = nomaset.objects.get(name=grpset.set)
+        sfile = sdir + grpset.sfile
+        sfiles = glob.glob(sfile)
+        if sfiles:
+            task_count += len(sfiles)
+        
+    return task_count
+    
+def getRecords(s, srt_txt, end_txt):
+    cmdP = 'Error!!! : Start text: %s not found' % srt_txt
+    cmdS, cmdE = re.compile(srt_txt.encode()), re.compile(end_txt.encode())
+    m = cmdS.search(s)
+    if m != None:
+        cmdP = 'Error!!! : End text: %s not found' % end_txt
+        n = cmdE.search(s, m.end())
+        if n != None:
+            cmdP = s[m.end():n.start()]
+           
+    return cmdP
+        
+def getFields(po, sep, acts, vs, outf, smap):
+    records = re.split(sep, po)
+    for rec in records:
+        radd, skipf = True, 0
+        varr = [[] for y in range(10)]
+        vals = list(vs)
+        rec.strip()
+        for idx, act in enumerate(acts):
+            if skipf > 0: 
+                skipf -= 1
+                continue
+            nepr = act.nepr if act.tfunc == None else None
+            fs, fe = act.spos, act.epos
+            m_s = re.search('\n', rec).start() if act.sepr == None and act.eepr == r'\n' else 0
+            if act.sepr != None: 
+                m = re.search(act.sepr, rec)
+                fs = None if m == None else fs + m.end()
+                if fs != None and fe != None: fe += m.end()
+            if fs != None and act.eepr != None and m_s == 0:
+                m = re.search(act.eepr, rec[fs:])
+                if m != None: fe = fs + m.start()
+            val = '' if fs == None else rec[fs:fe].strip() if m_s == 0 else rec[:m_s][fs:fe].strip()
+            if act.tfunc != None:
+                tfun = 'noma.tfunc.%s(%s)' % (act.tfunc, act.nepr)
+                val = eval(tfun) 
+            if act.varr != None: varr[act.varr].append(val)
+            if nepr == None:
+                if act.fname: vals.append(val)
+                if act.fepr != None:
+                    if not re.search(act.fepr, val): 
+                        if act.skipf == 0: 
+                            radd = False
+                            break
+                        skipf = act.skipf
+                else: skipf = act.skipf
+            else:
+                getFields(val,nepr,acts[idx+1:],vals,outf,smap)
+                break
+        if radd and nepr == None:
+            outf.write('%s\n' % '\t'.join(va for va in vals))
+
+            
+def getJRecords(s, srt_txt):
+    cmdP = 'Error!!! : Start text: %s not found' % srt_txt
+    m = s[srt_txt]
+    if m != None:
+        cmdP = m
+    return cmdP
+
+def getJFields(records, acts, vs, outf):
+    for rec in records:
+        radd = True
+        vals = list(vs)
+        for idx, act in enumerate(acts):
+            val = rec
+            keys = act.sepr.split('.')
+            if act.eepr == None:
+                for key in keys:
+                    val = val[key]
+            else:
+                val = next((dic for dic in rec if dic[keys[0]] == keys[1]), '')[act.eepr]
+            if act.nepr != None:
+                if val != None:
+                    getJFields(val,acts[idx+1:],vals,outf)
+                break
+            else:
+                if act.fname: vals.append(val)
+                if act.fepr != None:
+                    radd = re.search(act.fepr, val)
+                    if not radd: break
+        if radd and act.nepr == None:
+            outf.write('%s\n' % '\t'.join(va for va in vals))
+
+def getBRecords(s, sa):
+    sp, ef = int(sa[1]), int(sa[2])
+    s.seek(sp)
+    rec = []
+    cp = sp
+    while cp < ef:
+        s.seek(cp+8)
+        plen = 16 + int.from_bytes(s.read(4),byteorder=sa[3])
+        s.seek(cp)
+        rec.append(s.read(plen))
+        cp += plen
+    return rec
+
+def getBFields(records, acts, outf, sfa, dfsf, smap):
+    dupl, qno, ed = [None]*20, [0], sfa[3]
+    for rno, rec in enumerate(records):
+        radd = True
+        varr = [[] for y in range(10)]
+        vals = []
+        skipf, skipb = 0, 0
+        for idx, act in enumerate(acts):
+            if skipf > 0: 
+                skipf -= 1
+                continue
+            tfun = 'bv.hex()' if act.tfunc == None else 'noma.tfunc.%s%s' % (act.tfunc, '' if not act.nepr else act.nepr)
+            if act.eepr == None:
+                if act.spos != None:
+                    sp, ep = act.spos+skipb, act.epos+skipb
+                    bv = rec[sp:ep]
+                val = eval(tfun)
+            else: val = str(dfsf.loc[dfsf.index[rno],act.eepr]).strip()
+            if act.varr != None: varr[act.varr].append(val)
+            if act.skipb > 99: skipb += val
+            elif act.skipb > 0: skipb += act.skipb 
+            if act.skipf > 0:
+                if act.sepr == None: skipf = act.skipf
+                else: 
+                    if not re.search(act.sepr, val): skipf = act.skipf
+            if act.fname: vals.append(val)
+            if act.fepr != None:
+                radd = re.search(act.fepr, val)
+                if not radd: break
+        if radd: outf.write('%s\n' % '\t'.join(va for va in vals))
+ 
+def getPRecords(dfsf,sfa):
+    with open(sfa[0], 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
+        reso = getBRecords(s, sfa)
+        res = []
+        for row,data in dfsf.iterrows():
+            pkts = data['pidx'].split('-')
+            p0 = pkts[0].split(',')
+            resq = reso[int(p0[0])]
+            if len(pkts) > 1:
+                for p in pkts[1:]:
+                    pt = p.split(',')
+                    resq += reso[int(pt[0])][int(pt[1]):]
+            res.append(resq)
+    return res 
+            
+def nomaMain(sf, tf, set, acts, smap, dfsf, gtag):
+    if set.type == 'tx':
+        with open(sf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
+            res = getRecords(s, set.sepr, set.eepr)
+        if res[:8] != 'Error!!!':
+            with open(tf, 'w+b') as fw:            
+                fw.write(res)
+            with open(tf, 'r+') as fw:
+                res = fw.read()
+            with open(tf, 'r+', newline='') as fw:
+                fw.truncate()
+                iniv = [] if gtag == None else [gtag]
+                getFields(res, set.depr, acts, iniv, fw, smap)
+            res = "Successfully Executed " + set.name + "\n" 
+    elif set.type == 'js':
+        with codecs.open(sf, 'r', 'utf-8') as s:
+            jf = json.load(s)
+        res = getJRecords(jf, set.sepr)
+        if res[:8] != 'Error!!!':
+            with open(tf, 'w') as fw:
+                getJFields(res, acts, [], fw)
+            res = "Successfully Executed " + set.name + "\n"
+    elif set.type == 'bi':
+        sfa = ['',0,0,'']
+        sfa[0] = '/'.join(fn for fn in sf.split('\\'))
+        sfa[1] = set.sepr
+        sfa[2] = os.path.getsize(sf)
+        with open(sf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
+            mg = s.read(1)
+            sfa[3] = 'little' if mg[0] == 212 else 'big'
+            res = getBRecords(s, sfa)
+        with open(tf, 'w') as fw:
+            getBFields(res, acts, fw, sfa, dfsf, smap)
+        res = "Successfully Executed " + set.name + "\n" 
+    elif set.type == 'p2':
+        sfa = sf.split(',')
+        res = getPRecords(dfsf,sfa)
+        with open(tf, 'w') as fw:
+            getBFields(res, acts, fw, sfa, dfsf, smap)
+        res = "Successfully Executed " + set.name + "\n" 
+    
+    return res
+
+
+def queInfo(quegrp, id, queset):
+    grp = quegrp.objects.get(pk=int(id))
+    ldir = os.path.normpath(grp.ldir) + "\\"
+    log_content = "Query Group: " + grp.name + " to Output File: " + ldir + grp.tfile + "\n\n"
+    grpsets = grp.sets.all()
+    for grpset in grpsets:
+        set = queset.objects.get(name=grpset.set)
+        log_content = log_content + "Execute Query Set: " + set.name + "\n"
+        log_content = log_content + "   Query SQL Sequences:\n"
+        for sq in set.Sqls.all():
+            ps = "'%s',%s,%s,%s" % (sq.stbl,sq.qpar,grpset.spar,grp.gpar)
+            pars = '(%s)' % ','.join(p for p in ps.split(',') if p != '')
+            #ps = '%s%s%s' % (sq.qpar,grpset.spar,grp.gpar)
+            #pars = "('%s'%s)" % (sq.stbl,'' if ps == '' else ','+ps)
+            log_content = log_content + "       %s  -  %s%s\n" % (sq.seq, sq.qfunc, pars)
+        log_content = log_content + "\n"
+    return log_content
+
+def queCount(quegrp, id, queset):
+    grp = quegrp.objects.get(pk=int(id))
+    grpsets = grp.sets.all()
+    task_count = 0
+    for grpset in grpsets:
+        set = queset.objects.get(name=grpset.set)
+        for sq in set.Sqls.all():
+            task_count += 1
+    return task_count
+    
+    
+def nomaCreateTbl(tb, acts):
+    hdrs, flds = [], []
+    for act in acts:
+        if act.fname != None and act.fname not in hdrs: 
+            hdrs.append(act.fname)
+            flds.append('%s %s' % (act.fname, act.fchar))
+    fds = ','.join(fd for fd in flds)
+    create_sql = "CREATE TABLE %s (%s)" % (tb, fds)
+    with connections['xnaxdr'].cursor() as cursor:
+        cursor.execute(create_sql)
+        
+def nomaRetrace(df, ld):
+    dff = df.groupby('pfile')
+    for name,group in dff:
+        sfa = name.strip().split(',')
+        sfi = os.path.basename(sfa[0])
+        tf = '%s_%s' % (ld, sfi)
+        with open(sfa[0], 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
+            pcaphdr = s.read(24)
+            res = getBRecords(s, sfa)
+        with open(tf, 'wb') as fw:
+            fw.write(pcaphdr)
+            for row,data in group.iterrows():
+                pkts = data['pidx'].split('-')
+                for p in pkts:
+                    pt = p.split(',')
+                    fw.write(res[int(pt[0])])
+
+
+
+def nomaExecT(sf,strm, cstyp):
+    dfsf, sfiles = [], []
+    if cstyp == 'p2':
+        df = pd.read_sql_query(sf, connections['xnaxdr'])
+        dfgf = df.groupby('pfile')
+        for name,group in dfgf: sfiles.append(name.strip())
+        sf = sfiles[0]
+        dfsf = dfgf.get_group(sfiles[0])
+    dfsm = pd.DataFrame.from_records(strm)
+    sm = dfsm.groupby('ctag')
+    smap = {}
+    for name,group in sm:
+        smap[name] = {}
+        for row,data in group.iterrows(): smap[name].update({data['ostr'] : data['cstr']})
+    return smap, dfsf                
+
+'''
+def nomaLoad(tf, tb, hd):
+    load_sql = "LOAD DATA LOCAL INFILE %s INTO TABLE %s \
+                FIELDS TERMINATED BY '\t' %s" % (tf, tb, hd)
+    with connections['xnaxdr'].cursor() as cursor:
+        cursor.execute(load_sql)
+'''

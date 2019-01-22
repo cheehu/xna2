@@ -1,0 +1,14 @@
+{% extends "noma/basenoma.html" %} 
+ 
+{% block title %} Execute Noma {% endblock %} 
+ 
+{% block content %} 
+  <h1>Execute Group Tasks</h1>
+  <progress id="progress-bar" value="0" max="100" style="display:none; margin-bottom: 1em;"></progress>
+  <form id="Noma-Exec-form" action="." method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="submit" value="Execute"/>
+  </form>
+    
+{% endblock %}

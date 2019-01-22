@@ -1,0 +1,13 @@
+.aligned label {
+        padding: 3px 3px 0 0;
+        width: auto; 
+        display:block;
+        float: left;
+        /*text-align: right;*/
+}
+
+label {
+    display:block;
+    float: top;
+    /*text-align: right;*/
+}

@@ -1,0 +1,622 @@
+execnoma = 1
+savenoma = 0
+createtbl = 0
+
+#[PCAP IP Defragment;]
+tname = 'pcap_ip_defrag'
+ttype = 'bi'    
+sepr = 24
+eepr = None
+depr = None
+
+cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr)
+if savenoma == 1: cs.save()
+
+nf1 = NomaFunc(epr='utc(bv,ed)', desc='convert epoch to utc')
+nf2 = NomaFunc(epr='intBE(bv,ed)', desc='convert to integer based on PCAP ENDIAN (Magic Number)')
+nf3 = NomaFunc(epr='hexd(bv,":",2)', desc='convert to MAC address format')
+nf4 = NomaFunc(epr='hexd(bv,None,0)', desc='convert to hex format')
+nf5 = NomaFunc(epr='intb(bv,4,4)', desc='extract reverse last 4 bits' )
+nf6 = NomaFunc(epr='intb(bv,0,4)', desc='extract reverse first 4 bits')
+nf7 = NomaFunc(epr='intb(bv,2,6)', desc='extract reverse last 6 bits')
+nf8 = NomaFunc(epr='intb(bv,0,2)', desc='extract reverse first 2 bits')
+nf9 = NomaFunc(epr='intB(bv)', desc='convert to integer')
+nf10 = NomaFunc(epr='intb(bv,5,2)', desc='extract reverse last 6&7 bits' )
+nf11 = NomaFunc(epr='intb(bv,0,13)', desc='extract reverse first 13 bits' )
+nf12 = NomaFunc(epr='ipv4(bv)', desc='convert to IPv4 Address' )
+nf13 = NomaFunc(epr='hexd(bv,":",4)', desc='convert to IPv6 address format')
+nf14 = NomaFunc(epr='sigp(bv)', desc='signaling protocol based on port#')
+nf15 = NomaFunc(epr='text(bv)', desc='convert to string')
+nf16 = NomaFunc(epr='hdl(bv,4,4,8)', desc='tcp header length - start of app')
+nf17 = NomaFunc(epr='intBn(bv)', desc='return bv as numeric')
+nf18 = NomaFunc(epr='dumm("")', desc='return empty expression')
+nf19 = NomaFunc(epr='ivar(sp)', desc='return internal variable sp(start pos)')
+nf20 = NomaFunc(epr='hdl(bv,0,4,20)', desc='ip hdl, start of transport')
+nf21 = NomaFunc(epr='ivar(rno)', desc='return internal variable rno(packet idx)')
+nf22 = NomaFunc(epr='ivar(sf)', desc='return soruce file name)')
+nf23 = NomaFunc(epr='payl(bv)', desc='payload length = packet length - headers length')
+
+acts = []
+acts.append(sa(set=cs,seq=1,spos=0,epos=4,tfunc=nf1,fname='ts_dt'))
+acts.append(sa(set=cs,seq=2,spos=4,epos=8,tfunc=nf2,fname='ts_ns'))
+acts.append(sa(set=cs,seq=3,spos=28,epos=30,tfunc=nf4,sepr='^8100$',skipf=1))
+acts.append(sa(set=cs,seq=4,spos=30,epos=31,tfunc=nf9,eepr='',fname='vtag',skipb=4))
+acts.append(sa(set=cs,seq=5,spos=28,epos=30,tfunc=nf4,fepr='^0800$'))
+acts.append(sa(set=cs,seq=6,spos=30,epos=31,tfunc=nf19,varr=0))
+acts.append(sa(set=cs,seq=8,spos=39,epos=40,tfunc=nf9,fname='prot',fepr='^6$|^17$|^132$'))
+acts.append(sa(set=cs,seq=7,spos=32,epos=34,tfunc=nf9,fname='iplen',varr=0))
+acts.append(sa(set=cs,seq=9,spos=34,epos=36,tfunc=nf9,fname='pid'))
+acts.append(sa(set=cs,seq=9,spos=36,epos=37,tfunc=nf10,fname='flag'))
+acts.append(sa(set=cs,seq=11,spos=36,epos=38,tfunc=nf11,fname='offs'))
+acts.append(sa(set=cs,seq=10,spos=42,epos=46,tfunc=nf12,fname='ip_s'))
+acts.append(sa(set=cs,seq=11,spos=46,epos=50,tfunc=nf12,fname='ip_d'))
+acts.append(sa(set=cs,seq=12,spos=30,epos=31,tfunc=nf20,skipb=''))
+acts.append(sa(set=cs,seq=13,spos=50,epos=52,tfunc=nf9,fname='port_s',varr=1))
+acts.append(sa(set=cs,seq=14,spos=52,epos=54,tfunc=nf9,fname='port_d',varr=1))
+acts.append(sa(set=cs,seq=15,tfunc=nf14,varr=1,fname='sig'))
+#acts.append(sa(set=cs,seq=16,spos=39,epos=40,tfunc=nf9,sepr='^132$',skipf=3))
+#acts.append(sa(set=cs,seq=17,spos=62,epos=63,tfunc=nf4,sepr='^03$',skipf=1))
+#acts.append(sa(set=cs,seq=18,spos=64,epos=66,tfunc=nf17,skipb=''))
+#acts.append(sa(set=cs,seq=19,spos=62,epos=63,tfunc=nf4,fepr='^00$',skipb=20,skipf=2))
+#acts.append(sa(set=cs,seq=20,spos=39,epos=40,tfunc=nf9,sepr='^6$',skipf=1))
+#acts.append(sa(set=cs,seq=21,spos=62,epos=63,tfunc=nf16,skipb=''))
+#acts.append(sa(set=cs,seq=22,spos=58,epos=59,tfunc=nf19,varr=0))
+#acts.append(sa(set=cs,seq=23,tfunc=nf23,varr=0,fname='aplen',fepr='^[1-9]'))
+#acts.append(sa(set=cs,seq=24,spos=58,epos=70,tfunc=nf15,fname='msg'))
+#acts.append(sa(set=cs,seq=25,spos=0,epos=4,tfunc=nf21,fname='pidx'))
+#acts.append(sa(set=cs,seq=26,spos=0,epos=4,tfunc=nf22,fname='pfile'))
+
+sf = 'D:/XNA/SourceData/pcap/test_vlan_m.pcap'
+tf = 'D:/xna/SourceData/pcap/pcap_out04.csv'
+
+smap = {}
+for sm in NomaStrMap.objects.all(): smap.update({sm.ostr : sm.cstr})
+    
+if execnoma == 1: print(nomaMain(sf,tf,cs,acts,smap))
+if savenoma == 1: 
+    for act in acts: act.save()
+
+if createtbl == 1: nomaCreateTbl(tname, acts)
+
+
+#[PCAP IP Defragment;]
+tname = 'pcap_ip_defrag'
+ttype = 'bi'    
+sepr = 24
+eepr = None
+depr = None
+
+cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr)
+if savenoma == 1: cs.save()
+
+nf1 = NomaFunc.objects.get(epr='to_utc(bv,ed)')
+nf2 = NomaFunc.objects.get(epr='intBE(bv,ed)')
+nf3 = NomaFunc.objects.get(epr='to_hex(bv,')
+nf4 = NomaFunc.objects.get(epr='to_intb(bv,')
+nf5 = NomaFunc.objects.get(epr='to_intB(bv)')
+nf6 = NomaFunc.objects.get(epr='to_ipv4(bv)')
+nf7 = NomaFunc.objects.get(epr='to_sigp(bv)')
+nf8 = NomaFunc.objects.get(epr='to_txt(bv)')
+nf9 = NomaFunc.objects.get(epr='to_hdl(bv,')
+nf10 = NomaFunc.objects.get(epr='to_intBn(bv)')
+nf11 = NomaFunc.objects.get(epr='i_var(')
+nf12 = NomaFunc.objects.get(epr=to_paylen(bv)')
+
+
+acts = []
+acts.append(sa(set=cs,seq=1,spos=0,epos=4,tfunc=nf1,fname='ts_dt'))
+acts.append(sa(set=cs,seq=2,spos=4,epos=8,tfunc=nf2,fname='ts_ns'))
+acts.append(sa(set=cs,seq=3,spos=28,epos=30,sepr='^8100$',skipf=1))
+acts.append(sa(set=cs,seq=4,spos=30,epos=31,tfunc=nf5,eepr='',fname='vtag',skipb=4))
+acts.append(sa(set=cs,seq=5,spos=28,epos=30,fepr='^0800$'))
+acts.append(sa(set=cs,seq=6,spos=30,epos=31,tfunc=nf11,nepr=r'sp)',varr=0))
+acts.append(sa(set=cs,seq=8,spos=39,epos=40,tfunc=nf5,fname='prot',fepr='^6$|^17$|^132$'))
+acts.append(sa(set=cs,seq=7,spos=32,epos=34,tfunc=nf5,fname='iplen',varr=0))
+acts.append(sa(set=cs,seq=9,spos=34,epos=36,tfunc=nf5,fname='pid'))
+acts.append(sa(set=cs,seq=9,spos=36,epos=37,tfunc=nf4,nepr=r'5,2)',fname='flag'))
+acts.append(sa(set=cs,seq=11,spos=36,epos=38,tfunc=nf4,nepr=r'0,13)',fname='offs'))
+acts.append(sa(set=cs,seq=10,spos=42,epos=46,tfunc=nf6,fname='ip_s'))
+acts.append(sa(set=cs,seq=11,spos=46,epos=50,tfunc=nf6,fname='ip_d'))
+acts.append(sa(set=cs,seq=12,spos=30,epos=31,tfunc=nf9,nepr=r'0,4,20)',skipb=''))
+acts.append(sa(set=cs,seq=13,spos=50,epos=52,tfunc=nf5,fname='port_s',varr=1))
+acts.append(sa(set=cs,seq=14,spos=52,epos=54,tfunc=nf5,fname='port_d',varr=1))
+acts.append(sa(set=cs,seq=15,tfunc=nf7,varr=1,fname='sig'))
+#acts.append(sa(set=cs,seq=16,spos=39,epos=40,tfunc=nf5,sepr='^132$',skipf=3))
+#acts.append(sa(set=cs,seq=17,spos=62,epos=63,sepr='^03$',skipf=1))
+#acts.append(sa(set=cs,seq=18,spos=64,epos=66,tfunc=nf10,skipb=''))
+#acts.append(sa(set=cs,seq=19,spos=62,epos=63,fepr='^00$',skipb=20,skipf=2))
+#acts.append(sa(set=cs,seq=20,spos=39,epos=40,tfunc=nf5,sepr='^6$',skipf=1))
+#acts.append(sa(set=cs,seq=21,spos=62,epos=63,tfunc=nf9,nepr=r'4,4,8)',skipb=''))
+#acts.append(sa(set=cs,seq=22,spos=58,epos=59,tfunc=nf11,nepr=r'sp)',varr=0))
+#acts.append(sa(set=cs,seq=23,tfunc=nf12,varr=0,fname='aplen',fepr='^[1-9]'))
+#acts.append(sa(set=cs,seq=24,spos=58,epos=70,tfunc=nf8,fname='msg'))
+#acts.append(sa(set=cs,seq=25,spos=0,epos=4,tfunc=nf11,nepr=r'rno)',fname='pidx'))
+#acts.append(sa(set=cs,seq=26,spos=0,epos=4,tfunc=nf11,nepr=r'sf)',fname='pfile'))
+
+sf = 'D:/XNA/SourceData/pcap/test_vlan_m.pcap'
+tf = 'D:/xna/SourceData/pcap/pcap_out04.csv'
+
+smap = {}
+for sm in NomaStrMap.objects.all(): smap.update({sm.ostr : sm.cstr})
+    
+if execnoma == 1: print(nomaMain(sf,tf,cs,acts,smap))
+if savenoma == 1: 
+    for act in acts: act.save()
+
+if createtbl == 1: nomaCreateTbl(tname, acts)
+
+
+#[PCAP IP Defragment;]
+tname = 'pcap_ip_test'
+ttype = 'bi'    
+sepr = 24
+eepr = None
+depr = None
+
+cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr)
+if savenoma == 1: cs.save()
+
+nf1 = NomaFunc.objects.get(epr='to_utc(bv,ed)')
+nf2 = NomaFunc.objects.get(epr='to_intBE(bv,ed)')
+nf3 = NomaFunc.objects.get(epr='to_hex(bv,')
+nf4 = NomaFunc.objects.get(epr='to_intb(bv,')
+nf5 = NomaFunc.objects.get(epr='to_intB(bv)')
+nf6 = NomaFunc.objects.get(epr='to_ipv4(bv)')
+nf7 = NomaFunc.objects.get(epr='to_sigp(bv)')
+nf8 = NomaFunc.objects.get(epr='to_txt(bv)')
+nf9 = NomaFunc.objects.get(epr='to_hdl(bv,')
+nf10 = NomaFunc.objects.get(epr='to_intBn(bv)')
+nf11 = NomaFunc.objects.get(epr='i_var(')
+nf12 = NomaFunc.objects.get(epr='dumm(')
+nf13 = NomaFunc.objects.get(epr='dupp(bv,dupl,qno,')
+nf14 = NomaFunc.objects.get(epr='defrag(bv,dupl,recs,rno,skipb,')
+nf15 = NomaFunc.objects.get(epr='i_vara(')
+nf16 = NomaFunc.objects.get(epr='to_paylen(bv)')
+
+acts = []
+acts.append(sa(set=cs,seq=1,spos=0,epos=4,tfunc=nf1,fname='ts_dt',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=2,spos=4,epos=8,tfunc=nf2,fname='ts_ns',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=3,spos=28,epos=30,sepr='^8100$',skipf=1))
+acts.append(sa(set=cs,seq=4,spos=30,epos=31,tfunc=nf5,fname='vtag',skipf=1,skipb=4,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=5,spos=30,epos=31,tfunc=nf12,nepr='"")',fname='vtag'))
+acts.append(sa(set=cs,seq=6,spos=28,epos=30,fepr='^0800$'))
+acts.append(sa(set=cs,seq=7,spos=30,epos=31,tfunc=nf11,nepr=r'sp)',varr=0))
+acts.append(sa(set=cs,seq=8,spos=39,epos=40,tfunc=nf5,fname='prot',fepr='^6$|^17$|^132$',fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=9,spos=32,epos=34,tfunc=nf5,fname='iplen',varr=0,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=10,spos=34,epos=36,tfunc=nf5,fname='pid',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=11,spos=36,epos=38,tfunc=nf4,nepr=r'0,13)',fname='offs',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=12,spos=36,epos=37,tfunc=nf4,nepr=r'5,2)',fname='flag',varr=2,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=13,spos=40,epos=42,tfunc=nf5,fname='csum',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=14,tfunc=nf13,nepr=r'9)',varr=2,fname='dupp',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=15,spos=42,epos=46,tfunc=nf6,fname='ip_s',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=16,spos=46,epos=50,tfunc=nf6,fname='ip_d',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=17,spos=30,epos=31,tfunc=nf9,nepr=r'0,4,20)',skipb=100))
+acts.append(sa(set=cs,seq=18,spos=50,epos=52,tfunc=nf5,fname='port_s',varr=1,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=19,spos=52,epos=54,tfunc=nf5,fname='port_d',varr=1,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=20,spos=39,epos=40,tfunc=nf5,sepr='^132$',skipf=3))
+acts.append(sa(set=cs,seq=21,spos=62,epos=63,sepr='^03$',skipf=1))
+acts.append(sa(set=cs,seq=22,spos=64,epos=66,tfunc=nf10,skipb=100))
+acts.append(sa(set=cs,seq=23,spos=62,epos=63,fepr='^00$',skipb=20,skipf=2))
+acts.append(sa(set=cs,seq=24,spos=39,epos=40,tfunc=nf5,sepr='^6$',skipf=1))
+acts.append(sa(set=cs,seq=25,spos=62,epos=63,tfunc=nf9,nepr=r'4,4,8)',skipb=100))
+acts.append(sa(set=cs,seq=26,spos=58,epos=59,tfunc=nf11,nepr=r'sp)',varr=0))
+acts.append(sa(set=cs,seq=27,tfunc=nf16,varr=0,fname='aplen',fepr='^[1-9]'))
+acts.append(sa(set=cs,seq=28,spos=58,epos=70,tfunc=nf8,fname='msg'))
+acts.append(sa(set=cs,seq=29,spos=0,epos=4,tfunc=nf11,nepr=r'rno)',fname='pidx',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=30,spos=0,epos=4,tfunc=nf15,nepr=r'sfa)',fname='pfile',fchar=r'VARCHAR(100)'))
+
+#acts.append(sa(set=cs,seq=29,tfunc=nf7,varr=1,fname='sig',fchar=r'VARCHAR(10)'))
+
+sf = 'D:/XNA/SourceData/pcap/cmcc_reg.pcap'
+tf = 'D:/xna/SourceData/pcap/pcap_dupp08.tsv'
+
+
+
+#[PCAP IP Defragment;]
+tname = 'pcap_ip_test'
+ttype = 'bi'    
+sepr = 24
+eepr = None
+depr = None
+
+cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr)
+if savenoma == 1: cs.save()
+
+nf1 = NomaFunc.objects.get(epr='to_utc(bv,ed)')
+nf2 = NomaFunc.objects.get(epr='to_intBE(bv,ed)')
+nf3 = NomaFunc.objects.get(epr='to_hex(bv,')
+nf4 = NomaFunc.objects.get(epr='to_intb(bv,')
+nf5 = NomaFunc.objects.get(epr='to_intB(bv)')
+nf6 = NomaFunc.objects.get(epr='to_ipv4(bv)')
+nf7 = NomaFunc.objects.get(epr='to_sigp(bv)')
+nf8 = NomaFunc.objects.get(epr='to_txt(bv)')
+nf9 = NomaFunc.objects.get(epr='to_hdl(bv,')
+nf10 = NomaFunc.objects.get(epr='to_intBn(bv)')
+nf11 = NomaFunc.objects.get(epr='i_var(')
+nf12 = NomaFunc.objects.get(epr='dumm(')
+nf13 = NomaFunc.objects.get(epr='dupp(bv,dupl,qno,')
+nf14 = NomaFunc.objects.get(epr='defrag(bv,dupl,records,rno,skipb,qno,')
+nf15 = NomaFunc.objects.get(epr='i_vara(')
+nf16 = NomaFunc.objects.get(epr='to_paylen(bv)')
+
+acts = []
+acts.append(sa(set=cs,seq=1,spos=0,epos=4,tfunc=nf1,fname='ts_dt',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=2,spos=4,epos=8,tfunc=nf2,fname='ts_ns',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=3,spos=28,epos=30,sepr='^8100$',skipf=1))
+acts.append(sa(set=cs,seq=4,spos=30,epos=31,tfunc=nf5,fname='vtag',skipf=1,skipb=4,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=5,spos=30,epos=31,tfunc=nf12,nepr='"")',fname='vtag'))
+acts.append(sa(set=cs,seq=6,spos=28,epos=30,fepr='^0800$'))
+acts.append(sa(set=cs,seq=7,spos=30,epos=31,tfunc=nf11,nepr=r'sp)',varr=0))
+acts.append(sa(set=cs,seq=8,spos=39,epos=40,tfunc=nf5,fname='prot',fepr='^6$|^17$|^132$',fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=9,spos=32,epos=34,tfunc=nf5,fname='iplen',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=10,spos=30,epos=31,tfunc=nf4,nepr=r'0,4)',fname='iphl',varr=2,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=11,spos=34,epos=36,tfunc=nf5,fname='pid',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=12,spos=36,epos=38,tfunc=nf4,nepr=r'0,13)',fname='offs',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=13,spos=36,epos=37,tfunc=nf4,nepr=r'5,2)',fname='flag',varr=2,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=14,spos=40,epos=42,tfunc=nf5,fname='csum',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=15,tfunc=nf13,nepr=r'15)',varr=2,fepr='N'))
+acts.append(sa(set=cs,seq=16,spos=42,epos=46,tfunc=nf6,fname='ip_s',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=17,spos=46,epos=50,tfunc=nf6,fname='ip_d',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=18,spos=30,epos=31,tfunc=nf9,nepr=r'0,4,20)',skipb=100))
+acts.append(sa(set=cs,seq=19,tfunc=nf14,nepr=r'15)',varr=2,fname='pidxl'))
+acts.append(sa(set=cs,seq=30,spos=0,epos=4,tfunc=nf15,nepr=r'sfa)',fname='pfile',fchar=r'VARCHAR(100)'))
+#acts.append(sa(set=cs,seq=18,spos=50,epos=52,tfunc=nf5,fname='port_s',varr=1,fchar=r'VARCHAR(10)'))
+#acts.append(sa(set=cs,seq=19,spos=52,epos=54,tfunc=nf5,fname='port_d',varr=1,fchar=r'VARCHAR(10)'))
+#acts.append(sa(set=cs,seq=20,spos=39,epos=40,tfunc=nf5,sepr='^132$',skipf=3))
+#acts.append(sa(set=cs,seq=21,spos=62,epos=63,sepr='^03$',skipf=1))
+#acts.append(sa(set=cs,seq=22,spos=64,epos=66,tfunc=nf10,skipb=100))
+#acts.append(sa(set=cs,seq=23,spos=62,epos=63,fepr='^00$',skipb=20,skipf=2))
+#acts.append(sa(set=cs,seq=24,spos=39,epos=40,tfunc=nf5,sepr='^6$',skipf=1))
+#acts.append(sa(set=cs,seq=25,spos=62,epos=63,tfunc=nf9,nepr=r'4,4,8)',skipb=100))
+#acts.append(sa(set=cs,seq=26,spos=58,epos=59,tfunc=nf11,nepr=r'sp)',varr=0))
+#acts.append(sa(set=cs,seq=27,tfunc=nf16,varr=0,fname='aplen',fepr=r'^[^0]',fchar=r'VARCHAR(5)'))
+#acts.append(sa(set=cs,seq=28,spos=58,epos=70,tfunc=nf8,fname='msg',fchar=r'VARCHAR(30)'))
+#acts.append(sa(set=cs,seq=29,spos=0,epos=4,tfunc=nf11,nepr=r'rno)',fname='pidx',fchar=r'VARCHAR(10)'))
+
+sf = 'D:/XNA/SourceData/pcap/test_vlan_m.pcap'
+tf = 'D:/xna/SourceData/pcap/pcap_dupp11.tsv'
+
+
+#[PCAP IP Defragment;]
+tname = 'pcap_ip_test'
+ttype = 'bi'    
+sepr = 24
+eepr = None
+depr = None
+
+cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr)
+if savenoma == 1: cs.save()
+
+nf1 = NomaFunc.objects.get(epr='to_utc(bv,ed)')
+nf2 = NomaFunc.objects.get(epr='to_intBE(bv,ed)')
+nf3 = NomaFunc.objects.get(epr='to_hex(bv,')
+nf4 = NomaFunc.objects.get(epr='to_intb(bv,')
+nf5 = NomaFunc.objects.get(epr='to_intB(bv)')
+nf6 = NomaFunc.objects.get(epr='to_ipv4(bv)')
+nf7 = NomaFunc.objects.get(epr='to_sigp(bv)')
+nf8 = NomaFunc.objects.get(epr='to_txt(bv)')
+nf9 = NomaFunc.objects.get(epr='to_hdl(bv,')
+nf10 = NomaFunc.objects.get(epr='to_intBn(bv)')
+nf11 = NomaFunc.objects.get(epr='i_var(')
+nf12 = NomaFunc.objects.get(epr='dumm(')
+nf13 = NomaFunc.objects.get(epr='dupp(bv,dupl,qno,')
+nf14 = NomaFunc.objects.get(epr='defrag(bv,dupl,records,rno,skipb,qno,')
+nf15 = NomaFunc.objects.get(epr='i_vara(')
+nf16 = NomaFunc.objects.get(epr='to_paylen(bv)')
+
+acts = []
+acts.append(sa(set=cs,seq=1,spos=0,epos=4,tfunc=nf1,fname='ts_dt',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=2,spos=4,epos=8,tfunc=nf2,fname='ts_ns',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=3,spos=28,epos=30,sepr='^8100$',skipf=1))
+acts.append(sa(set=cs,seq=4,spos=30,epos=31,tfunc=nf5,fname='vtag',skipf=1,skipb=4,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=5,spos=30,epos=31,tfunc=nf12,nepr='"")',fname='vtag'))
+acts.append(sa(set=cs,seq=6,spos=28,epos=30,fepr='^0800$'))
+acts.append(sa(set=cs,seq=7,spos=30,epos=31,tfunc=nf11,nepr=r'sp)',varr=0))
+acts.append(sa(set=cs,seq=8,spos=39,epos=40,tfunc=nf5,fname='prot',fepr='^6$|^17$|^132$',fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=9,spos=32,epos=34,tfunc=nf5,fname='iplen',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=10,spos=30,epos=31,tfunc=nf4,nepr=r'0,4)',fname='iphl',varr=2,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=11,spos=34,epos=36,tfunc=nf5,fname='pid',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=12,spos=36,epos=38,tfunc=nf4,nepr=r'0,13)',fname='offs',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=13,spos=36,epos=37,tfunc=nf4,nepr=r'5,2)',fname='flag',varr=2,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=14,spos=40,epos=42,tfunc=nf5,fname='ipcsum',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=15,tfunc=nf13,nepr=r'15)',varr=2,fepr='N'))
+acts.append(sa(set=cs,seq=16,spos=42,epos=46,tfunc=nf6,fname='ip_s',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=17,spos=46,epos=50,tfunc=nf6,fname='ip_d',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=18,spos=30,epos=31,tfunc=nf9,nepr=r'0,4,20)',skipb=100))
+acts.append(sa(set=cs,seq=19,tfunc=nf14,nepr=r'15)',varr=2,fname='pidx'))
+acts.append(sa(set=cs,seq=20,spos=0,epos=4,tfunc=nf15,nepr=r'sfa)',fname='pfile',fchar=r'VARCHAR(100)'))
+acts.append(sa(set=cs,seq=21,spos=50,epos=52,tfunc=nf5,fname='port_s',varr=1,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=22,spos=52,epos=54,tfunc=nf5,fname='port_d',varr=1,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=23,spos=39,epos=40,tfunc=nf5,sepr='^132$',skipf=3))
+acts.append(sa(set=cs,seq=24,spos=62,epos=63,sepr='^03$',skipf=1))
+acts.append(sa(set=cs,seq=25,spos=64,epos=66,tfunc=nf10,skipb=100))
+acts.append(sa(set=cs,seq=26,spos=62,epos=63,fepr='^00$',skipb=20,skipf=2))
+acts.append(sa(set=cs,seq=27,spos=39,epos=40,tfunc=nf5,sepr='^6$',skipf=1))
+acts.append(sa(set=cs,seq=28,spos=62,epos=63,tfunc=nf9,nepr=r'4,4,8)',skipb=100))
+acts.append(sa(set=cs,seq=29,spos=58,epos=59,tfunc=nf11,nepr=r'sp)',varr=0))
+acts.append(sa(set=cs,seq=30,tfunc=nf16,varr=0,fname='aplen',fepr=r'^[1-9]',fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=31,spos=58,epos=70,tfunc=nf8,fname='msg',fchar=r'VARCHAR(30)'))
+
+
+sf = 'D:/XNA/SourceData/pcap/test_vlan_m.pcap'
+tf = 'D:/xna/SourceData/pcap/pcap_dupp12.tsv'
+dfsf = []
+
+
+#[PCAP IP Defragment;]
+tname = 'pcap_ip_test'
+ttype = 'bi'    
+sepr = 24
+eepr = None
+depr = None
+
+cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr)
+if savenoma == 1: cs.save()
+
+nf1 = NomaFunc.objects.get(epr='to_utc(bv,ed)')
+nf2 = NomaFunc.objects.get(epr='to_intBE(bv,ed)')
+nf3 = NomaFunc.objects.get(epr='to_hex(bv,')
+nf4 = NomaFunc.objects.get(epr='to_intb(bv,')
+nf5 = NomaFunc.objects.get(epr='to_intB(bv)')
+nf6 = NomaFunc.objects.get(epr='to_ipv4(bv)')
+nf7 = NomaFunc.objects.get(epr='to_sigp(')
+nf8 = NomaFunc.objects.get(epr='to_txt(bv)')
+nf9 = NomaFunc.objects.get(epr='to_hdl(bv,')
+nf10 = NomaFunc.objects.get(epr='to_intBn(bv)')
+nf11 = NomaFunc.objects.get(epr='i_var(')
+nf12 = NomaFunc.objects.get(epr='dumm(')
+nf13 = NomaFunc.objects.get(epr='dupp(dupl,qno,')
+nf14 = NomaFunc.objects.get(epr='defrag(dupl,records,rno,skipb,qno,')
+nf15 = NomaFunc.objects.get(epr='i_vara(')
+nf16 = NomaFunc.objects.get(epr='to_paylen(')
+
+acts = []
+acts.append(sa(set=cs,seq=1,spos=0,epos=4,tfunc=nf1,fname='ts_dt',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=2,spos=4,epos=8,tfunc=nf2,fname='ts_ns',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=3,spos=28,epos=30,sepr='^8100$',skipf=1))
+acts.append(sa(set=cs,seq=4,spos=30,epos=31,tfunc=nf5,fname='vtag',skipf=1,skipb=4,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=5,spos=30,epos=31,tfunc=nf12,nepr='"")',fname='vtag'))
+acts.append(sa(set=cs,seq=6,spos=28,epos=30,fepr='^0800$'))
+acts.append(sa(set=cs,seq=7,spos=30,epos=31,tfunc=nf11,nepr=r'sp)',varr=0))
+acts.append(sa(set=cs,seq=8,spos=39,epos=40,tfunc=nf5,fname='prot',fepr='^6$|^17$|^132$',fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=9,spos=32,epos=34,tfunc=nf5,fname='iplen',varr=0,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=10,spos=30,epos=31,tfunc=nf4,nepr=r'0,4)',fname='iphl',varr=0,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=11,spos=34,epos=36,tfunc=nf5,fname='pid',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=12,spos=36,epos=38,tfunc=nf4,nepr=r'0,13)',fname='offs',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=13,spos=36,epos=37,tfunc=nf4,nepr=r'5,2)',fname='flag',varr=2,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=14,spos=40,epos=42,tfunc=nf5,fname='ipcsum',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=15,tfunc=nf13,nepr=r'varr[2],15)',fepr='N'))
+acts.append(sa(set=cs,seq=16,spos=42,epos=46,tfunc=nf6,fname='ip_s',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=17,spos=46,epos=50,tfunc=nf6,fname='ip_d',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=18,spos=30,epos=31,tfunc=nf9,nepr=r'0,4,20)',skipb=100))
+acts.append(sa(set=cs,seq=19,tfunc=nf14,nepr=r'varr[2],varr[0],15)',fname='pidx'))
+acts.append(sa(set=cs,seq=20,spos=0,epos=4,tfunc=nf15,nepr=r'sfa)',fname='pfile',fchar=r'VARCHAR(100)'))
+acts.append(sa(set=cs,seq=21,spos=50,epos=52,tfunc=nf5,fname='port_s',varr=1,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=22,spos=52,epos=54,tfunc=nf5,fname='port_d',varr=1,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=23,tfunc=nf7,nepr=r'varr[1],smap["portno"])',fname='sig'))
+acts.append(sa(set=cs,seq=24,spos=39,epos=40,tfunc=nf5,sepr='^132$',skipf=3))
+acts.append(sa(set=cs,seq=25,spos=62,epos=63,sepr='^03$',skipf=1))
+acts.append(sa(set=cs,seq=26,spos=64,epos=66,tfunc=nf10,skipb=100))
+acts.append(sa(set=cs,seq=27,spos=62,epos=63,fepr='^00$',skipb=20,skipf=2))
+acts.append(sa(set=cs,seq=28,spos=39,epos=40,tfunc=nf5,sepr='^6$',skipf=1))
+acts.append(sa(set=cs,seq=29,spos=62,epos=63,tfunc=nf9,nepr=r'4,4,8)',skipb=100))
+acts.append(sa(set=cs,seq=30,spos=58,epos=59,tfunc=nf11,nepr=r'sp)',varr=0))
+acts.append(sa(set=cs,seq=31,tfunc=nf16,nepr=r'varr[0])',fname='aplen',fepr=r'^[1-9]',fchar=r'VARCHAR(5)'))
+#acts.append(sa(set=cs,seq=31,spos=58,epos=70,tfunc=nf8,fname='msg',fchar=r'VARCHAR(30)'))
+
+
+sf = 'D:/XNA/SourceData/pcap/test_vlan_m.pcap'
+tf = 'D:/xna/SourceData/pcap/pcap_dupp14.tsv'
+dfsf = []
+   
+if execnoma == 1: 
+    dfsm = pd.DataFrame.from_records(NomaStrMap.objects.all().values())
+    sm = dfsm.groupby('ctag')
+    smap = {}
+    for name,group in sm:
+        smap[name] = {}
+        for row,data in group.iterrows(): smap[name].update({data['ostr'] : data['cstr']})
+    st = time.time()
+    print(nomaMain(sf,tf,cs,acts,smap,dfsf))
+    print(time.time() - st)
+
+#[PCAP SIP;]
+tname = 'pcap_sip_test'
+ttype = 'bi'    
+sepr = 24
+eepr = None
+depr = None
+
+cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr)
+if savenoma == 1: cs.save()
+
+nf1 = NomaFunc.objects.get(epr='to_utc(bv,ed)')
+nf2 = NomaFunc.objects.get(epr='to_intBE(bv,ed)')
+nf3 = NomaFunc.objects.get(epr='to_hex(bv,')
+nf4 = NomaFunc.objects.get(epr='to_intb(bv,')
+nf5 = NomaFunc.objects.get(epr='to_intB(bv)')
+nf6 = NomaFunc.objects.get(epr='to_ipv4(bv)')
+nf7 = NomaFunc.objects.get(epr='to_sigp(')
+nf8 = NomaFunc.objects.get(epr='to_txt(bv)')
+nf9 = NomaFunc.objects.get(epr='to_hdl(bv,')
+nf10 = NomaFunc.objects.get(epr='to_intBn(bv)')
+nf11 = NomaFunc.objects.get(epr='i_var(')
+nf12 = NomaFunc.objects.get(epr='dumm(')
+nf13 = NomaFunc.objects.get(epr='dupp(dupl,qno,')
+nf14 = NomaFunc.objects.get(epr='defrag(dupl,records,rno,skipb,qno,')
+nf15 = NomaFunc.objects.get(epr='i_vara(')
+nf16 = NomaFunc.objects.get(epr='to_paylen(')
+nf17 = NomaFunc.objects.get(epr='apdata(rec,')
+nf18 = NomaFunc.objects.get(epr='siphdr(')
+
+acts = []
+acts.append(sa(set=cs,seq=1,spos=0,epos=4,tfunc=nf1,fname='ts_dt',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=2,spos=4,epos=8,tfunc=nf2,fname='ts_ns',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=3,spos=28,epos=30,sepr='^8100$',skipf=1))
+acts.append(sa(set=cs,seq=4,spos=30,epos=31,tfunc=nf5,fname='vtag',skipf=1,skipb=4,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=5,spos=30,epos=31,tfunc=nf12,nepr='"")',fname='vtag'))
+acts.append(sa(set=cs,seq=6,spos=28,epos=30,fepr='^0800$'))
+acts.append(sa(set=cs,seq=7,spos=30,epos=31,tfunc=nf11,nepr=r'sp)',varr=0))
+acts.append(sa(set=cs,seq=8,spos=39,epos=40,tfunc=nf5,fname='prot',fepr='^6$|^17$|^132$',fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=9,spos=32,epos=34,tfunc=nf5,fname='iplen',varr=0,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=10,spos=30,epos=31,tfunc=nf4,nepr=r'0,4)',fname='iphl',varr=0,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=11,spos=34,epos=36,tfunc=nf5,fname='pid',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=12,spos=36,epos=38,tfunc=nf4,nepr=r'0,13)',fname='offs',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=13,spos=36,epos=37,tfunc=nf4,nepr=r'5,2)',fname='flag',varr=2,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=14,spos=40,epos=42,tfunc=nf5,fname='ipcsum',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=15,tfunc=nf13,nepr=r'varr[2],15)',fepr='N'))
+acts.append(sa(set=cs,seq=16,spos=42,epos=46,tfunc=nf6,fname='ip_s',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=17,spos=46,epos=50,tfunc=nf6,fname='ip_d',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=18,spos=30,epos=31,tfunc=nf9,nepr=r'0,4,20)',skipb=100))
+acts.append(sa(set=cs,seq=19,tfunc=nf14,nepr=r'varr[2],varr[0],15)',fname='pidx',fchar=r'VARCHAR(100)'))
+acts.append(sa(set=cs,seq=20,spos=0,epos=4,tfunc=nf15,nepr=r'sfa)',fname='pfile',fchar=r'VARCHAR(100)'))
+acts.append(sa(set=cs,seq=21,spos=50,epos=52,tfunc=nf5,fname='port_s',varr=1,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=22,spos=52,epos=54,tfunc=nf5,fname='port_d',varr=1,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=23,tfunc=nf7,nepr=r'varr[1],smap["portno"])',fepr='sip',fname='sigp',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=24,spos=39,epos=40,tfunc=nf5,sepr='^132$',skipf=3))
+acts.append(sa(set=cs,seq=25,spos=62,epos=63,sepr='^03$',skipf=1))
+acts.append(sa(set=cs,seq=26,spos=64,epos=66,tfunc=nf10,skipb=100))
+acts.append(sa(set=cs,seq=27,spos=62,epos=63,fepr='^00$',skipb=20,skipf=2))
+acts.append(sa(set=cs,seq=28,spos=39,epos=40,tfunc=nf5,sepr='^6$',skipf=1))
+acts.append(sa(set=cs,seq=29,spos=62,epos=63,tfunc=nf9,nepr=r'4,4,8)',skipb=100))
+acts.append(sa(set=cs,seq=30,spos=58,epos=59,tfunc=nf11,nepr=r'sp)',fname='apsp',varr=0,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=31,tfunc=nf16,nepr=r'varr[0])',fname='aplen',fepr=r'^[1-9]',fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=32,tfunc=nf17,nepr=r'varr[0][3])',varr=3))
+acts.append(sa(set=cs,seq=33,tfunc=nf18,nepr=r'varr[3][0],b"^(?=.+sip:)|SIP/2\.0\s",b"\s")',fname='msg',fchar=r'VARCHAR(20)'))
+#acts.append(sa(set=cs,seq=33,tfunc=nf17,nepr=r'varr[0][3],b"\n(From|f):",b"\n")',fname='cgpn',fchar=r'VARCHAR(50)'))
+
+
+sf = 'D:/XNA/SourceData/pcap/test_vlan_m.pcap'
+tf = 'D:/xna/SourceData/pcap/pcap_sip04.tsv'
+dfsf = []
+   
+if execnoma == 1: 
+    dfsm = pd.DataFrame.from_records(NomaStrMap.objects.all().values())
+    sm = dfsm.groupby('ctag')
+    smap = {}
+    for name,group in sm:
+        smap[name] = {}
+        for row,data in group.iterrows(): smap[name].update({data['ostr'] : data['cstr']})
+    st = time.time()
+    print(nomaMain(sf,tf,cs,acts,smap,dfsf))
+    print(time.time() - st)
+
+if savenoma == 1: 
+    for act in acts: act.save()
+
+if createtbl == 1: nomaCreateTbl(tname, acts)
+
+#[PCAP SIP2;]
+tname = 'pcap_sip2_test'
+ttype = 'p2'    
+sepr = 24
+eepr = None
+depr = None
+
+cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr)
+if savenoma == 1: cs.save()
+
+nf17 = NomaFunc.objects.get(epr='apdata(rec,')
+nf18 = NomaFunc.objects.get(epr='siphdr(')
+
+acts = []
+acts.append(sa(set=cs,seq=1,eepr='ts_dt',fname='ts_dt',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=2,eepr='ts_ns',fname='ts_ns',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=3,eepr='apsp',fname='apsp',varr=0,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=4,eepr='msg',fname='msg',fchar=r'VARCHAR(20)'))
+acts.append(sa(set=cs,seq=5,tfunc=nf17,nepr=r'varr[0][0])',varr=1))
+acts.append(sa(set=cs,seq=6,tfunc=nf18,nepr=r'varr[1][0],b"\n(From|f):",b"\n")',fname='cgpn',fchar=r'VARCHAR(50)'))
+
+
+sf = 'SELECT * FROM pcap_sip_test'
+tf = 'D:/xna/SourceData/pcap/pcap_sip2_01.tsv'
+dfsf, sfiles = [], []
+   
+if execnoma == 1: 
+    if cs.type == 'p2':
+        df = pd.read_sql_query(sf, connections['xnaxdr'])
+        dfgf = df.groupby('pfile')
+        for name,group in dfgf: sfiles.append(name.strip())
+        sf = sfiles[0]
+        dfsf = dfgf.get_group(sfiles[0])
+    dfsm = pd.DataFrame.from_records(NomaStrMap.objects.all().values())
+    sm = dfsm.groupby('ctag')
+    smap = {}
+    for name,group in sm:
+        smap[name] = {}
+        for row,data in group.iterrows(): smap[name].update({data['ostr'] : data['cstr']})
+    st = time.time()
+    print(nomaMain(sf,tf,cs,acts,smap,dfsf))
+    print(time.time() - st)
+
+
+#[PCAP FirstPass;]
+tname = 'pcap_firstpass'
+ttype = 'bi'    
+sepr = 24
+eepr = None
+depr = None
+
+cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr)
+if savenoma == 1: cs.save()
+
+nf1 = NomaFunc.objects.get(epr='to_utc(bv,ed)')
+nf2 = NomaFunc.objects.get(epr='to_intBE(bv,ed)')
+nf3 = NomaFunc.objects.get(epr='to_hex(bv,')
+nf4 = NomaFunc.objects.get(epr='to_intb(bv,')
+nf5 = NomaFunc.objects.get(epr='to_intB(bv)')
+nf6 = NomaFunc.objects.get(epr='to_ipv4(bv)')
+nf7 = NomaFunc.objects.get(epr='to_sigp(')
+nf8 = NomaFunc.objects.get(epr='to_txt(bv)')
+nf9 = NomaFunc.objects.get(epr='to_hdl(bv,')
+nf10 = NomaFunc.objects.get(epr='to_intBn(bv)')
+nf11 = NomaFunc.objects.get(epr='i_var(')
+nf12 = NomaFunc.objects.get(epr='dumm(')
+nf13 = NomaFunc.objects.get(epr='dupp(dupl,qno,')
+nf14 = NomaFunc.objects.get(epr='defrag(dupl,records,rno,skipb,qno,')
+nf15 = NomaFunc.objects.get(epr='i_vara(')
+nf16 = NomaFunc.objects.get(epr='to_paylen(')
+nf17 = NomaFunc.objects.get(epr='apdata(rec,')
+nf18 = NomaFunc.objects.get(epr='siphdr(')
+
+acts = []
+acts.append(sa(set=cs,seq=1,spos=0,epos=4,tfunc=nf1,fname='ts_dt',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=2,spos=4,epos=8,tfunc=nf2,fname='ts_ns',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=3,spos=28,epos=30,sepr='^8100$',skipf=1))
+acts.append(sa(set=cs,seq=4,spos=30,epos=31,tfunc=nf5,fname='vtag',skipf=1,skipb=4,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=5,spos=30,epos=31,tfunc=nf12,nepr='"")',fname='vtag'))
+acts.append(sa(set=cs,seq=6,spos=28,epos=30,fepr='^0800$'))
+acts.append(sa(set=cs,seq=7,spos=30,epos=31,tfunc=nf11,nepr=r'sp)',varr=0))
+acts.append(sa(set=cs,seq=8,spos=39,epos=40,tfunc=nf5,fname='prot',fepr='^6$|^17$|^132$',fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=9,spos=32,epos=34,tfunc=nf5,fname='iplen',varr=0,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=10,spos=30,epos=31,tfunc=nf4,nepr=r'0,4)',fname='iphl',varr=0,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=11,spos=34,epos=36,tfunc=nf5,fname='pid',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=12,spos=36,epos=38,tfunc=nf4,nepr=r'0,13)',fname='offs',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=13,spos=36,epos=37,tfunc=nf4,nepr=r'5,2)',fname='flag',varr=2,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=14,spos=40,epos=42,tfunc=nf5,fname='ipcsum',varr=2,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=15,tfunc=nf13,nepr=r'varr[2],15)',fepr='N'))
+acts.append(sa(set=cs,seq=16,spos=42,epos=46,tfunc=nf6,fname='ip_s',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=17,spos=46,epos=50,tfunc=nf6,fname='ip_d',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=18,spos=30,epos=31,tfunc=nf9,nepr=r'0,4,20)',skipb=100))
+acts.append(sa(set=cs,seq=19,tfunc=nf14,nepr=r'varr[2],varr[0],15)',fname='pidx',fchar=r'VARCHAR(100)'))
+acts.append(sa(set=cs,seq=20,spos=0,epos=4,tfunc=nf15,nepr=r'sfa)',fname='pfile',fchar=r'VARCHAR(100)'))
+acts.append(sa(set=cs,seq=21,spos=50,epos=52,tfunc=nf5,fname='port_s',varr=1,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=22,spos=52,epos=54,tfunc=nf5,fname='port_d',varr=1,fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=23,tfunc=nf7,nepr=r'varr[1],smap["portno"])',fname='sigp',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=24,spos=39,epos=40,tfunc=nf5,sepr='^132$',skipf=3))
+acts.append(sa(set=cs,seq=25,spos=62,epos=63,sepr='^03$',skipf=1))
+acts.append(sa(set=cs,seq=26,spos=64,epos=66,tfunc=nf10,skipb=100))
+acts.append(sa(set=cs,seq=27,spos=62,epos=63,fepr='^00$',skipb=20,skipf=2))
+acts.append(sa(set=cs,seq=28,spos=39,epos=40,tfunc=nf5,sepr='^6$',skipf=1))
+acts.append(sa(set=cs,seq=29,spos=62,epos=63,tfunc=nf9,nepr=r'4,4,8)',skipb=100))
+acts.append(sa(set=cs,seq=30,spos=58,epos=59,tfunc=nf11,nepr=r'sp)',fname='apsp',varr=0,fchar=r'VARCHAR(5)'))
+acts.append(sa(set=cs,seq=31,tfunc=nf16,nepr=r'varr[0])',fname='aplen',fepr=r'^[1-9]',fchar=r'VARCHAR(5)'))
+
+sf = 'D:/XNA/SourceData/pcap/noma_sample2.pcap'
+tf = 'D:/xna/SourceData/pcap/pcap_1stpass.tsv'
+   
+if execnoma == 1: 
+    smap, dfsf = nomaExecT(sf,NomaStrMap.objects.all().values(),cs.type)
+    st = time.time()
+    print(nomaMain(sf,tf,cs,acts,smap,dfsf))
+    print(time.time() - st)
