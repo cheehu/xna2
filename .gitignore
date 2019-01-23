@@ -1,3 +1,6 @@
 *.env
 *.ini
 *.log
+*.pyc
+*.pyo
+*.pot

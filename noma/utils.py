@@ -14,7 +14,7 @@ def nomaInfo(nomagrp, id, nomaset):
         log_content = log_content + "Execute NOMA Set: " + set.name + "\n"
         log_content = log_content + "   Set Type : " + set.type + "\n"
         log_content = log_content + "   Target Table: " + grpset.ttbl + "\n"
-        sfile = sdir + grpset.sfile
+        sfile = os.path.normpath(sdir + grpset.sfile)
         log_content = log_content + "   Source Files: " + sfile + "\n"   
         sfiles = glob.glob(sfile)
         if sfiles:
