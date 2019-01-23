@@ -1,4 +1,5 @@
 import os
+from decouple import config, Csv
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -8,12 +9,12 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/2.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'rdl@axt_2*j5w50o)!+3wq95jrqwpb($%-&qlmd9)nl_+ezxjb'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', cast=bool)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 
 
 # Application definition
@@ -65,18 +66,18 @@ WSGI_APPLICATION = 'xna2.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'nomadb',
+        'NAME': config('DB_NAME'),
         'HOSTNAME': 'localhost',
-        'USER': 'root',
-        'PASSWORD': '1612',
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
         'OPTIONS': {'autocommit': True}
     },
     'xnaxdr': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'xnaxdr',
+        'NAME': config('XDB_NAME'),
         'HOSTNAME': 'localhost',
-        'USER': 'root',
-        'PASSWORD': '1612',
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
         'OPTIONS': {'autocommit': True}
     }
 }
@@ -126,5 +127,5 @@ CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
-GRP_DIR = 'd:/xna/sourcedata'
-LOG_DIR = 'd:/xna/logs'
+GRP_DIR = config('IN_DIR')
+LOG_DIR = config('OUT_DIR')
