@@ -1,4 +1,4 @@
-import os, glob, pandas as pd
+import os, pathlib, pandas as pd
 from django.conf import settings
 from django.db import connection, connections
 import re, mmap, json, codecs
@@ -6,7 +6,7 @@ import noma.tfunc
 
 def nomaInfo(nomagrp, id, nomaset):
     grp = nomagrp.objects.get(pk=int(id))
-    sdir = os.path.normpath(grp.sdir) + "\\"
+    sdir = pathlib.Path(grp.sdir)
     log_content = "NOMA Group:%s gtag:%s\n From Source DIR: %s\n\n" % (grp.name, grp.gtag, sdir)
     grpsets = grp.sets.all()
     for grpset in grpsets:
@@ -14,12 +14,12 @@ def nomaInfo(nomagrp, id, nomaset):
         log_content = log_content + "Execute NOMA Set: " + set.name + "\n"
         log_content = log_content + "   Set Type : " + set.type + "\n"
         log_content = log_content + "   Target Table: " + grpset.ttbl + "\n"
-        sfile = os.path.normpath(sdir + grpset.sfile)
-        log_content = log_content + "   Source Files: " + sfile + "\n"   
-        sfiles = glob.glob(sfile)
+        sfile = sdir / grpset.sfile
+        log_content = '%s   Source Files: %s\n' % (log_content, sfile)
+        sfiles = list(sdir.glob(grpset.sfile))
         if sfiles:
             for sfile in sfiles:
-                log_content = log_content + "       " + os.path.basename(sfile)  + "\n"
+                log_content = log_content + "       " + sfile.name  + "\n"
         else:
             log_content = log_content + "       No file matching " + grpset.sfile + "\n"
         log_content = log_content + "   NOMA Actions Sequences:\n"
@@ -30,16 +30,14 @@ def nomaInfo(nomagrp, id, nomaset):
 
 def nomaCount(nomagrp, id, nomaset):
     grp = nomagrp.objects.get(pk=int(id))
-    sdir = os.path.normpath(grp.sdir) + "\\"
+    sdir = pathlib.Path(grp.sdir)
     grpsets = grp.sets.all()
     task_count = 0
     for grpset in grpsets:
         set = nomaset.objects.get(name=grpset.set)
-        sfile = sdir + grpset.sfile
-        sfiles = glob.glob(sfile)
-        if sfiles:
-            task_count += len(sfiles)
-        
+        sfile = sdir / grpset.sfile
+        sfiles = list(sdir.glob(grpset.sfile))
+        if sfiles: task_count += len(sfiles)
     return task_count
     
 def getRecords(s, srt_txt, end_txt):
@@ -232,8 +230,9 @@ def nomaMain(sf, tf, set, acts, smap, dfsf, gtag):
 
 def queInfo(quegrp, id, queset):
     grp = quegrp.objects.get(pk=int(id))
-    ldir = os.path.normpath(grp.ldir) + "\\"
-    log_content = "Query Group: " + grp.name + " to Output File: " + ldir + grp.tfile + "\n\n"
+    ldir = pathlib.Path(grp.ldir)
+    tfile = ldir / grp.tfile
+    log_content = "Query Group:%s to Output File: %s\n\n" % (grp.name, tfile)
     grpsets = grp.sets.all()
     for grpset in grpsets:
         set = queset.objects.get(name=grpset.set)
@@ -242,8 +241,6 @@ def queInfo(quegrp, id, queset):
         for sq in set.Sqls.all():
             ps = "'%s',%s,%s,%s" % (sq.stbl,sq.qpar,grpset.spar,grp.gpar)
             pars = '(%s)' % ','.join(p for p in ps.split(',') if p != '')
-            #ps = '%s%s%s' % (sq.qpar,grpset.spar,grp.gpar)
-            #pars = "('%s'%s)" % (sq.stbl,'' if ps == '' else ','+ps)
             log_content = log_content + "       %s  -  %s%s\n" % (sq.seq, sq.qfunc, pars)
         log_content = log_content + "\n"
     return log_content

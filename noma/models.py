@@ -32,7 +32,7 @@ class NomaSet(models.Model):
 
     class Meta:    
         db_table = 'noma_set'
-        verbose_name_plural = " [A] Noma Sets"
+        verbose_name_plural = " [K] Noma Sets"
         
     def __str__(self):
         return self.name
@@ -66,7 +66,7 @@ class NomaFunc(models.Model):
     
     class Meta:
         db_table = 'noma_func'
-        verbose_name_plural = '[E] T-Functions'
+        verbose_name_plural = '[A] T-Functions'
         
     def __str__(self):
         return self.epr
@@ -118,7 +118,7 @@ class queSet(models.Model):
     
     class Meta:    
         db_table = 'que_set'
-        verbose_name_plural = " [A] Query Sets"
+        verbose_name_plural = " [K] Query Sets"
         
     def __str__(self):
         return self.name
@@ -149,7 +149,7 @@ class NomaQFunc(models.Model):
     
     class Meta:
         db_table = 'noma_qfunc'
-        verbose_name_plural = '[E] Q-Functions'
+        verbose_name_plural = '[A] Q-Functions'
         
     def __str__(self):
         return self.epr
@@ -181,7 +181,7 @@ class NomaStrMap(models.Model):
     class Meta:
         db_table = 'noma_strmap'
         unique_together = (('ctag', 'ostr'),)
-        verbose_name_plural = ' [A] Strings Maps'
+        verbose_name_plural = ' [K] Strings Maps'
         
     def __str__(self):
         return self.ostr

@@ -1,23 +1,21 @@
+import pathlib
 #mm = "ZNRB:",ckey,":",concat(IF(para="","",concat("PARA=",para)),IF(lsh="","",concat("LOAD=",lsh)),IF(aopc="","",concat("AOPC=",aopc)))
+#flds = 'ckey_0,para_1,load_1,rou_2,prio_2' 
+#mc = '"ZNRB:" 0 ",:" 1* ";"'
 
-flds = 'ckey_0,para_1,load_1,rou_2,prio_2' 
+spath = 'D:/xna/SourceData/DTG/MSS/MSSFFM01/'
+sfs = 'abc.tsv'
 
-mc = '"ZNRB:" 0 ",:" 1* ";"'
+tfile = spath + 'abc.tsv'
 
-
-def q_mstr(ma, fd):
-    fa = fd.split(',')
-    ml = []
-    va = ma.split(' ')
-    for p in va:
-        if p[0].isdigit():
-            if p[-1] == '*': 
-                ml.append("mid(concat(%s)" % ','.join('IF(%s="","",concat(",%s=",%s))' % (f,f[:-2],f) for f in fa if f[-1] == p[0]))
-            else: ml.append(','.join(f for f in fa if f[-1] == p[0]))
-        else: ml.append(p)
-    return ','.join(m for m in ml)
-
-print(q_mstr(mc, flds))
+sdir = pathlib.Path(spath)
+sfi = sdir / sfs
+print(sfi)
+#sfiles = list(sdir.glob(sfs))
+#tf = str(pathlib.PurePosixPath(sfi))
+tf1 = "'%s'" % ('/'.join(fn for fn in tfile.split('\\')))
+sqlq = "LOAD DATA LOCAL INFILE %s INTO TABLE table" % (tf1)
+print (sqlq)
 
 #print(flds[0][-1])
 

@@ -1,6 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 from celery import shared_task, current_task
-import os, glob
+import os, pathlib
 from .models import NomaGrp, NomaSet, queGrp, queSet, NomaStrMap
 from .utils import nomaMain, nomaRetrace
 from django.db import connection, connections
@@ -10,9 +10,9 @@ import noma.tfunc
 @shared_task
 def nomaExec(id, total_count):
     grp = NomaGrp.objects.get(pk=int(id))
-    sdir = os.path.normpath(grp.sdir) + "\\"
-    ldir = os.path.normpath(grp.ldir) + "\\"
-    f=open(ldir + grp.name + '.log', "w+")
+    sdir = pathlib.Path(grp.sdir)
+    ldir = pathlib.Path(grp.ldir)
+    f=open(ldir / (grp.name + '.log'), "w+")
     f.write("Executing NOMA Group: %s from Source DIR: %s\n\n" % (grp, sdir))
     dfsm = pd.DataFrame.from_records(NomaStrMap.objects.all().values())
     sm = dfsm.groupby('ctag')
@@ -34,26 +34,26 @@ def nomaExec(id, total_count):
             if act.fname != None and act.fname not in hdrs: hdrs.append(act.fname)
             f.write("       %s  -  %s  -  %s   -  %s\n" % (act.seq, act.fname, act.sepr, act.eepr))
         f.write("\n")
-        sfile = sdir + grpset.sfile
-        tfile = ldir + set.name + '.tsv'
+        sfile = sdir / grpset.sfile
+        tfile = ldir / (set.name + '.tsv')
         f.write("   Source Files: %s\n" % sfile)
         if set.type == 'p2':
             df = pd.read_sql_query(grpset.sfile, connections['xnaxdr'])
             dfgf = df.groupby('pfile')
             for name in dfgf: sfiles.append(name.strip())
         else:
-            sfiles = glob.glob(sfile)
+            sfiles = list(sdir.glob(grpset.sfile))
         if sfiles:
             for sfile in sfiles:
                 dfsf = dfgf.get_group(sfile) if set.type == 'p2' else ''
-                f.write("       %s\n" % sfile)
+                f.write("       %s\n" % sfile.name)
                 i = i + 1
                 f.write(nomaMain(sfile, tfile, set, acts, smap, dfsf, grp.gtag))
                 f.flush()
                 os.fsync(f.fileno())
                 if grpset.ttbl != None:
-                    tf = "'%s'" % ('/'.join(fn for fn in tfile.split('\\')))
                     hdr = ','.join(hd for hd in hdrs)
+                    tf = "'%s'" % ('/'.join(fn for fn in str(tfile).split('\\')))
                     sqlq = "LOAD DATA LOCAL INFILE %s INTO TABLE %s FIELDS TERMINATED BY '\t' (%s)" % (tf, grpset.ttbl, hdr)
                     with connections['xnaxdr'].cursor() as cursor:
                         cursor.execute(sqlq)
@@ -69,12 +69,11 @@ def nomaExec(id, total_count):
 @shared_task
 def nomaQExe(id, total_count):
     grp = queGrp.objects.get(pk=int(id))
-    ldir = os.path.normpath(grp.ldir) + "\\"
-    tfile = ldir + grp.tfile
+    ldir = pathlib.Path(grp.ldir)
+    tfile = ldir / grp.tfile
     writer = pd.ExcelWriter(tfile, engine='xlsxwriter')
     workbook = writer.book
     format_col = workbook.add_format({'align':'left','font_size':9})
-    #format_col.set_align('left')
     format_hdr = workbook.add_format({'bold': True, 'fg_color': '#D7E4BC'})
     format_title = workbook.add_format({'bold': True, 'fg_color': '#00FFFF', 'font_size':14})
     format_add = workbook.add_format({'bold': True, 'bg_color': '#FFFF00'})
@@ -85,7 +84,7 @@ def nomaQExe(id, total_count):
     Indexsheet.write(0,1, '', format_title)
     Indexsheet.set_column(0, 0, 3)
     Indexsheet.set_column(1, 1, 80)
-    f=open(ldir + grp.name + '.log', "w+")
+    f=open(ldir / (grp.name + '.log'), "w+")
     f.write("Executing Que Group: %s Output to DIR: %s\n\n" % (grp, ldir))
     i, j = 0, 0
     for grpset in grp.sets.all():
