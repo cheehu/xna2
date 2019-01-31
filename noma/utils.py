@@ -22,7 +22,7 @@ def get_dirs(spath,fx):
 def dirzip(spath):
     sdir = BDIR / spath
     if sdir.suffix == '.zip':
-        tdir = pathlib.Path('%s\%s_unzip' % (sdir.parent, sdir.stem))
+        tdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
         with zipfile.ZipFile(sdir,"r") as zip_ref:
             zip_ref.extractall(tdir)
         return tdir
