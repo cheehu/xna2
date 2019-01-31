@@ -32,7 +32,7 @@ def dirzip(spath):
 def nomaInfo(nomagrp, id, nomaset):
     grp = nomagrp.objects.get(pk=int(id))
     sdir = BDIR / grp.sdir
-    if sdir.suffix == '.zip': sdir = pathlib.Path('%s\%s_unzip' % (sdir.parent, sdir.stem))
+    if sdir.suffix == '.zip': sdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
     log_content = "NOMA Group:%s gtag:%s\n From Source DIR: %s\n\n" % (grp.name, grp.gtag, sdir)
     grpsets = grp.sets.all()
     for grpset in grpsets:

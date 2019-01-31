@@ -11,7 +11,7 @@ import noma.tfunc
 def nomaExec(id, total_count):
     grp = NomaGrp.objects.get(pk=int(id))
     sdir = BDIR / grp.sdir
-    if sdir.suffix == '.zip': sdir = pathlib.Path('%s\%s_unzip' % (sdir.parent, sdir.stem))
+    if sdir.suffix == '.zip': sdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
     ldir = ODIR / grp.ldir
     f=open(ldir / (grp.name + '.log'), "w+")
     f.write("Executing NOMA Group: %s from Source DIR: %s\n" % (grp, sdir))
