@@ -1,17 +1,18 @@
 from django.db import models
 from django.urls import reverse # Used to generate URLs by reversing the URL patterns
-from django.conf import settings
+
 
 class NomaGrp(models.Model):
     name = models.CharField('Group Name', unique=True, max_length=50)
     desc = models.CharField('Description', max_length=200, blank=True, null=True)
-    sdir = models.FilePathField('Source File Folder', path=settings.GRP_DIR, recursive=True, allow_files=False, allow_folders=True, max_length=200)
-    ldir = models.FilePathField('Output File Folder', path=settings.LOG_DIR, recursive=True, allow_files=False, allow_folders=True, max_length=200)
+    sdir = models.CharField(max_length=200)
+    ldir = models.CharField(max_length=200)
     gtag = models.CharField('Tag', max_length=100, blank=True, null=True)
 
     class Meta:
         db_table = 'noma_grp'
         verbose_name_plural = "  [O] Import Groups"
+        ordering = ['name']
     
     def __str__(self):
         return self.name
@@ -33,6 +34,7 @@ class NomaSet(models.Model):
     class Meta:    
         db_table = 'noma_set'
         verbose_name_plural = " [K] Noma Sets"
+        ordering = ['name']
         
     def __str__(self):
         return self.name
@@ -41,6 +43,7 @@ class NomaGrpSet(models.Model):
     grp = models.ForeignKey(NomaGrp,
                             related_name='sets',
                             on_delete=models.CASCADE)
+    seq = models.DecimalField(max_digits=3, decimal_places=1)
     set = models.ForeignKey(NomaSet,
                             related_name='grps',
                             on_delete=models.CASCADE)
@@ -53,6 +56,7 @@ class NomaGrpSet(models.Model):
         unique_together = (('grp', 'set'),)
         verbose_name = "Noma Set"
         verbose_name_plural = " Noma Sets"
+        ordering = ['seq']
     
     def __str__(self):
        return str(self.grp) + ' - ' + str(self.set)
@@ -100,7 +104,7 @@ class NomaSetAct(models.Model):
 
 class queGrp(models.Model):
     name = models.CharField('Group Name', unique=True, max_length=50)
-    ldir = models.FilePathField('Output Folder', path=settings.LOG_DIR, recursive=True, allow_files=False, allow_folders=True, max_length=200)
+    ldir = models.CharField(max_length=200)
     tfile = models.CharField(max_length=100)
     gpar = models.CharField(max_length=200, blank=True, default='')
     desc = models.CharField(max_length=200, blank=True, default='')
@@ -108,6 +112,7 @@ class queGrp(models.Model):
     class Meta:
         db_table = 'que_grp'
         verbose_name_plural = "  [O] Query Groups"
+        ordering = ['name']
     
     def __str__(self):
         return self.name
@@ -127,10 +132,10 @@ class queGrpSet(models.Model):
     grp = models.ForeignKey(queGrp,
                             related_name='sets',
                             on_delete=models.CASCADE)
+    seq = models.DecimalField(max_digits=3, decimal_places=1)
     set = models.ForeignKey(queSet,
                             related_name='grps',
                             on_delete=models.CASCADE)
-    
     spar = models.CharField(max_length=200, blank=True, default='')
     
     class Meta:
@@ -138,7 +143,8 @@ class queGrpSet(models.Model):
         unique_together = (('grp', 'set'),)
         verbose_name = "Query Set"
         verbose_name_plural = "Query Sets"
-    
+        ordering = ['seq']
+        
     def __str__(self):
        return str(self.grp) + ' - ' + str(self.set)
 
@@ -158,7 +164,7 @@ class queSetSql(models.Model):
     set = models.ForeignKey(queSet,
                             related_name='Sqls',
                             on_delete=models.CASCADE)
-    seq = models.DecimalField(max_digits=3, decimal_places=0)
+    seq = models.DecimalField(max_digits=3, decimal_places=1)
     name = models.CharField(max_length=50)
     qfunc = models.ForeignKey(NomaQFunc, on_delete=models.CASCADE, blank=True, null=True)
     stbl = models.CharField(max_length=30)
@@ -175,13 +181,14 @@ class queSetSql(models.Model):
 class NomaStrMap(models.Model):
     ctag = models.CharField(max_length=20,default='default')
     ostr = models.CharField(max_length=50)
-    cstr = models.CharField(max_length=50, blank=True, null=True)
+    cstr = models.CharField(max_length=50, blank=True, default='')
     desc = models.CharField(max_length=200, blank=True, null=True)
     
     class Meta:
         db_table = 'noma_strmap'
         unique_together = (('ctag', 'ostr'),)
         verbose_name_plural = ' [K] Strings Maps'
+        ordering = ['ctag', 'ostr']
         
     def __str__(self):
         return self.ostr

@@ -1,12 +1,38 @@
-import os, pathlib, pandas as pd
+import os, pathlib, zipfile, pandas as pd
 from django.conf import settings
 from django.db import connection, connections
 import re, mmap, json, codecs
 import noma.tfunc
 
+BDIR = pathlib.Path(settings.GRP_DIR)
+ODIR = pathlib.Path(settings.LOG_DIR)
+
+def get_dbtbs(ptt):
+    with connections['xnaxdr'].cursor() as cursor:
+        cursor.execute('SHOW TABLES')
+    tbls = [(tb[0],tb[0]) for tb in cursor if re.search(ptt,tb[0])]
+    return tuple(tbls)
+
+def get_dirs(spath,fx):
+    sdir = pathlib.Path(spath)
+    p = sdir.glob('**/*')
+    dirs = [(x.relative_to(sdir),x.relative_to(sdir)) for x in p if x.is_dir() or x.suffix.lower() == fx]
+    return tuple(dirs)
+
+def dirzip(spath):
+    sdir = BDIR / spath
+    if sdir.suffix == '.zip':
+        tdir = pathlib.Path('%s\%s_unzip' % (sdir.parent, sdir.stem))
+        with zipfile.ZipFile(sdir,"r") as zip_ref:
+            zip_ref.extractall(tdir)
+        return tdir
+    return sdir
+ 
+
 def nomaInfo(nomagrp, id, nomaset):
     grp = nomagrp.objects.get(pk=int(id))
-    sdir = pathlib.Path(grp.sdir)
+    sdir = BDIR / grp.sdir
+    if sdir.suffix == '.zip': sdir = pathlib.Path('%s\%s_unzip' % (sdir.parent, sdir.stem))
     log_content = "NOMA Group:%s gtag:%s\n From Source DIR: %s\n\n" % (grp.name, grp.gtag, sdir)
     grpsets = grp.sets.all()
     for grpset in grpsets:
@@ -30,7 +56,7 @@ def nomaInfo(nomagrp, id, nomaset):
 
 def nomaCount(nomagrp, id, nomaset):
     grp = nomagrp.objects.get(pk=int(id))
-    sdir = pathlib.Path(grp.sdir)
+    sdir = dirzip(grp.sdir)
     grpsets = grp.sets.all()
     task_count = 0
     for grpset in grpsets:
@@ -149,7 +175,7 @@ def getBFields(records, acts, outf, sfa, dfsf, smap):
             if skipf > 0: 
                 skipf -= 1
                 continue
-            tfun = 'bv.hex()' if act.tfunc == None else 'noma.tfunc.%s%s' % (act.tfunc, '' if not act.nepr else act.nepr)
+            tfun = 'bv.hex()' if act.tfunc == None else 'noma.tfunc.%s(%s)' % (act.tfunc, act.nepr)
             if act.eepr == None:
                 if act.spos != None:
                     sp, ep = act.spos+skipb, act.epos+skipb
@@ -197,7 +223,7 @@ def nomaMain(sf, tf, set, acts, smap, dfsf, gtag):
                 fw.truncate()
                 iniv = [] if gtag == None else [gtag]
                 getFields(res, set.depr, acts, iniv, fw, smap)
-            res = "Successfully Executed " + set.name + "\n" 
+            res = "Successfully Executed " + set.name 
     elif set.type == 'js':
         with codecs.open(sf, 'r', 'utf-8') as s:
             jf = json.load(s)
@@ -205,7 +231,7 @@ def nomaMain(sf, tf, set, acts, smap, dfsf, gtag):
         if res[:8] != 'Error!!!':
             with open(tf, 'w') as fw:
                 getJFields(res, acts, [], fw)
-            res = "Successfully Executed " + set.name + "\n"
+            res = "Successfully Executed " + set.name
     elif set.type == 'bi':
         sfa = ['',0,0,'']
         sfa[0] = '/'.join(fn for fn in sf.split('\\'))
@@ -217,20 +243,20 @@ def nomaMain(sf, tf, set, acts, smap, dfsf, gtag):
             res = getBRecords(s, sfa)
         with open(tf, 'w') as fw:
             getBFields(res, acts, fw, sfa, dfsf, smap)
-        res = "Successfully Executed " + set.name + "\n" 
+        res = "Successfully Executed " + set.name
     elif set.type == 'p2':
         sfa = sf.split(',')
         res = getPRecords(dfsf,sfa)
         with open(tf, 'w') as fw:
             getBFields(res, acts, fw, sfa, dfsf, smap)
-        res = "Successfully Executed " + set.name + "\n" 
+        res = "Successfully Executed " + set.name
     
     return res
 
 
 def queInfo(quegrp, id, queset):
     grp = quegrp.objects.get(pk=int(id))
-    ldir = pathlib.Path(grp.ldir)
+    ldir = BDIR / grp.ldir
     tfile = ldir / grp.tfile
     log_content = "Query Group:%s to Output File: %s\n\n" % (grp.name, tfile)
     grpsets = grp.sets.all()

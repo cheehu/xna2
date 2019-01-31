@@ -144,6 +144,8 @@ def repstr1(val,dc,tl):
 def trim(val,s,e):
     return val[s:e]
     
+
+    
 def q_basic(stbl, flds=['*'], cond=''):
     if flds[0] == '*': 
         if len(flds) > 1:
@@ -155,6 +157,11 @@ def q_basic(stbl, flds=['*'], cond=''):
         cols = ','.join(cn for cn in flds)
     if cond != '': cond = ' WHERE %s' % cond 
     sqlq = "SELECT %s FROM %s%s" % (cols, stbl, cond)
+    return sqlq
+
+def q_delete(stbl, cond='gtag is null'):
+    if cond != '': cond = ' WHERE %s' % cond 
+    sqlq = "DELETE FROM %s%s" % (stbl, cond)
     return sqlq
 
 def q_copy(stbl, tag1, tag2):

@@ -1,14 +1,10 @@
 from django import forms
-from django.db import connections
+#from django.db import connections
 from .models import NomaSetAct, NomaGrp
-
-def get_dbtbs():
-    with connections['xnaxdr'].cursor() as cursor:
-        cursor.execute('SHOW TABLES')
-    tbls = []
-    for (tb,) in cursor: tbls.append((tb,tb))
-    return tuple(tbls)
-
+from django.conf import settings
+from django.forms import widgets
+from .utils import get_dbtbs, get_dirs
+   
 class NomaSetActForm(forms.ModelForm):
     class Meta:
         widgets = { 'seq': forms.NumberInput(attrs={'style': 'width:6ch'}),
@@ -22,7 +18,7 @@ class NomaSetActForm(forms.ModelForm):
                     'skipb': forms.NumberInput(attrs={'style': 'width:5ch'}),
                     'fname': forms.TextInput(attrs={'size': 10}),
                     'varr': forms.NumberInput(attrs={'style': 'width:5ch'}),
-                    #'tfunc': forms.Select(attrs={'size': 15})
+                    'tfunc': forms.Select(attrs={'style': 'width:20ch'})
                     
 				 }        
     
@@ -38,35 +34,45 @@ class NomaGrpForm(forms.ModelForm):
     class Meta:
         widgets = { 'name': forms.TextInput(attrs={'size': 30}),
                     'desc': forms.TextInput(attrs={'size': 80}),
-                    'sdir': forms.Select(attrs={'style': 'width:30ch'}),
-                    'ldir': forms.Select(attrs={'style': 'width:30ch'}) 
-                
                  } 
-
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['sdir'] = forms.ChoiceField(label='Source Folder',
+                                                choices=get_dirs(settings.GRP_DIR,'.zip'),
+                                                widget=widgets.Select(attrs={'style': 'width:50ch'}))
+        self.fields['ldir'] = forms.ChoiceField(label='Log Folder',
+                                                choices=get_dirs(settings.LOG_DIR,None),
+                                                widget=widgets.Select(attrs={'style': 'width:50ch'}))
+        
+        
 class NomaGrpSetForm(forms.ModelForm):
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['ttbl'] = forms.ChoiceField(choices=get_dbtbs())
+        self.fields['ttbl'] = forms.ChoiceField(choices=get_dbtbs('^(?!v_)'))
                  
 class queGrpForm(forms.ModelForm):
     class Meta:
         widgets = { 'name': forms.TextInput(attrs={'size': 30}),
                     'desc': forms.TextInput(attrs={'size': 60}),
-                    'ldir': forms.Select(attrs={'style': 'width:30ch'}),
-                    'tfile': forms.TextInput(attrs={'size': 30}) 
-                
-                 } 
+                    'tfile': forms.TextInput(attrs={'size': 50}) 
+                 }
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['ldir'] = forms.ChoiceField(label='Output Folder',
+                                                choices=get_dirs(settings.LOG_DIR,None),
+                                                widget=widgets.Select(attrs={'style': 'width:50ch'}))
+        
 class queSetSqlForm(forms.ModelForm):
     class Meta:
         widgets = { 'seq': forms.NumberInput(attrs={'style': 'width:7ch'}),
                     'name': forms.TextInput(attrs={'size': 20}),
-                    'qpar': forms.TextInput(attrs={'size': 120}),
+                    'qpar': forms.TextInput(attrs={'size': 100}),
         		 }
                     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['stbl'] = forms.ChoiceField(choices=get_dbtbs())
+        self.fields['stbl'] = forms.ChoiceField(choices=get_dbtbs('.+'))
                  
                  
 class NomaExecForm(forms.Form):
