@@ -139,5 +139,5 @@ def excelout(sqlq,writer,workbook,sqn,ldir):
     for c, col in enumerate(df.columns):
         clen = max(df[col].astype(str).map(len).max(), len(str(df[col].name))+1) + 1
         worksheet.set_column(c, c, clen)
-    if 'pidx' in df.columns.values: nomaRetrace(df, '%s%s' % (ldir, sqn))
+    if 'pidxx' in df.columns.values: nomaRetrace(df, '%s%s' % (ldir, sqn))
     return True        

@@ -258,6 +258,7 @@ def q_comp(stbl, tag1, tag2):
        
     return sqlq
 
+    
 def q_mstr(ma, fd):
     fa = fd.split(',')
     ml = []
@@ -282,4 +283,19 @@ def q_mmls(stbl, mc, md, mm, tag1, tag2):
     
     return sqlq
 
+def q_comps(stbl,ck,rtag,ctags):
+    with connections['xnaxdr'].cursor() as cursor:
+        cursor.execute("SHOW COLUMNS FROM %s" % stbl)
+    kcols = ',"-",'.join(k for k in ck)
+    ck.append('gtag')
+    ncols = ','.join(cn[0] for cn in cursor if cn[0] not in ck)
+    ccols = ','.join('if(t1.%s=t2.%s,":=",concat("<>",t1.%s)) %s' % (cn[0],cn[0],cn[0],cn[0]) for cn in cursor if cn[0] not in ck)
+    sql1 = 'SELECT concat("*",gtag) gtag, concat(%s) ckey, %s FROM %s WHERE gtag=%s \nUNION\n' % (kcols, ncols, stbl, rtag)
+    sql2 = 'SELECT t1.gtag,t1.ckey, %s\n' % ccols
+    sql3 = 'FROM (SELECT concat(%s) ckey, gtag, %s FROM %s WHERE gtag IN (%s)) t1\n' % (kcols, ncols, stbl, ctags)
+    sql4 = 'LEFT JOIN (SELECT concat(%s) ckey, gtag, %s FROM %s WHERE gtag=%s) t2\n' % (kcols, ncols, stbl, rtag)    
+    sqlq = '%s%s%s%sOn t1.ckey=t2.ckey ORDER BY ckey, gtag' % (sql1, sql2, sql3, sql4)
+    
+    return sqlq
+    
     

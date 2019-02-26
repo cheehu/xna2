@@ -256,7 +256,7 @@ def nomaMain(sf, tf, set, acts, smap, dfsf, gtag):
 
 def queInfo(quegrp, id, queset):
     grp = quegrp.objects.get(pk=int(id))
-    ldir = BDIR / grp.ldir
+    ldir = ODIR / grp.ldir
     tfile = ldir / grp.tfile
     log_content = "Query Group:%s to Output File: %s\n\n" % (grp.name, tfile)
     grpsets = grp.sets.all()
