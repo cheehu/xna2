@@ -217,7 +217,7 @@ def nomaMain(sf, tf, set, acts, smap, dfsf, gtag):
         if res[:8] != 'Error!!!':
             with open(tf, 'w+b') as fw:            
                 fw.write(res)
-            with open(tf, 'r+') as fw:
+            with open(tf, 'r+', encoding='cp1252') as fw:
                 res = fw.read()
             with open(tf, 'r+', newline='') as fw:
                 fw.truncate()
