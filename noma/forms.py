@@ -46,16 +46,19 @@ class NomaGrpForm(forms.ModelForm):
         
         
 class NomaGrpSetForm(forms.ModelForm):
-        
+            
     def __init__(self, *args, **kwargs):
+        tblist = get_dbtbs('^(?!v_)')
         super().__init__(*args, **kwargs)
-        self.fields['ttbl'] = forms.ChoiceField(choices=get_dbtbs('^(?!v_)'))
+        self.fields['ttbl'] = forms.ChoiceField(choices=tblist)
+        
                  
 class queGrpForm(forms.ModelForm):
     class Meta:
         widgets = { 'name': forms.TextInput(attrs={'size': 30}),
                     'desc': forms.TextInput(attrs={'size': 60}),
-                    'tfile': forms.TextInput(attrs={'size': 50}) 
+                    'tfile': forms.TextInput(attrs={'size': 50}),
+                    'gpar': forms.TextInput(attrs={'size': 80})                    
                  }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

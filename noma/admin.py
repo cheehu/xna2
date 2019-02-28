@@ -9,7 +9,6 @@ from django.urls import path
 from .tasks import nomaExec, nomaQExe
 from django.http import HttpResponse
 
-
 class NomaAdminSite(AdminSite):
     site_header = "NOMA Portal"
     site_title = "XNA"
@@ -33,10 +32,11 @@ class NomaQFuncAdmin(admin.ModelAdmin):
 class NomaGrpSetInline(admin.TabularInline):
     model = NomaGrpSet
     form = NomaGrpSetForm
+    raw_id_fields = ('set',)
     extra = 0
     class Media:
         css = { "all" : ("css/hide_admin_original.css",) }
-        
+
 class NomaSetActInline(admin.TabularInline):
     model = NomaSetAct
     form = NomaSetActForm
@@ -44,7 +44,7 @@ class NomaSetActInline(admin.TabularInline):
     extra = 0
     class Media:
         css = { "all" : ("css/hide_admin_original.css",) }
-
+        
 class NomaGrpAdmin(admin.ModelAdmin):
     form = NomaGrpForm
     list_display = ('name', 'desc', 'sdir', 'ldir')
@@ -54,14 +54,14 @@ class NomaGrpAdmin(admin.ModelAdmin):
     
     class Media:
         css = { "all" : ("css/nomabase.css",) }
-    
+
     def get_urls(self):
         urls = super().get_urls()
         my_urls = [
             path('<pk>/exec_view/', self.admin_site.admin_view(self.exec_view), name="exec_view")
         ]
         return my_urls + urls
-    
+            
     def exec_view(self, request, pk):
         total_count = nomaCount(NomaGrp,pk,NomaSet)
         if request.method == 'POST':
@@ -73,8 +73,8 @@ class NomaGrpAdmin(admin.ModelAdmin):
             form = NomaExecForm(initial={'log_content': log_content, 'total_count': total_count})
         context = {'form': form} 
         return render(request, 'noma/progress.html', context)
-
-
+    
+    
 class NomaSetAdmin(admin.ModelAdmin):
     list_display = ('name', 'desc', 'type')
     fields = [('name', 'desc', 'type'), 
