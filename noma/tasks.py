@@ -124,12 +124,14 @@ def excelout(sqlq,writer,workbook,sqn,ldir):
     format_add = workbook.add_format({'bold': True, 'bg_color': '#FFFF00'})
     format_del = workbook.add_format({'bold': True, 'bg_color': '#FF0000'})
     format_mod = workbook.add_format({'bold': True, 'bg_color': '#FF00FF'})
+    format_ref = workbook.add_format({'bold': True, 'bg_color': '#CCFFFF'})
     df = pd.read_sql_query(sqlq, connections['xnaxdr'])
     df.to_excel(writer, sheet_name=sqn, index=False, startrow=1, header=False)
     worksheet = writer.sheets[sqn]
     worksheet.conditional_format(1,0,len(df.index),len(df.columns)-1,{'type':'text','criteria':'containing','value':':##','format':format_add})
     worksheet.conditional_format(1,0,len(df.index),len(df.columns)-1,{'type':'text','criteria':'containing','value':'##:','format':format_del})
     worksheet.conditional_format(1,0,len(df.index),len(df.columns)-1,{'type':'text','criteria':'containing','value':'<>','format':format_mod})
+    worksheet.conditional_format(1,0,len(df.index),len(df.columns)-1,{'type':'formula','criteria':'=LEFT($A2,1)="*"','format':format_ref})
     worksheet.write_url(0,0, 'internal:Index!A1')
     for cnum, value in enumerate(df.columns.values): worksheet.write(0, cnum, value, format_hdr)
     cn = len(df.columns)-1

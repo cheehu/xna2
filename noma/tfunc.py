@@ -283,18 +283,24 @@ def q_mmls(stbl, mc, md, mm, tag1, tag2):
     
     return sqlq
 
-def q_comps(stbl,ck,rtag,ctags):
+def q_comps(stbl,ck,cd,rtag,ctags):
     with connections['xnaxdr'].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
     kcols = ',"-",'.join(k for k in ck)
+    ckey = '_'.join(k for k in ck)
+    kcol1 = ',"-",'.join('t1.%s' % k for k in ck)
+    onk = ' and '.join('t1.%s=t2.%s' % (k, k) for k in ck)
+    if cd != '': cd =  'and %s' % ' and '.join(c for c in cd.split(','))
     ck.append('gtag')
     ncols = ','.join(cn[0] for cn in cursor if cn[0] not in ck)
     ccols = ','.join('if(t1.%s=t2.%s,":=",concat("<>",t1.%s)) %s' % (cn[0],cn[0],cn[0],cn[0]) for cn in cursor if cn[0] not in ck)
-    sql1 = 'SELECT concat("*",gtag) gtag, concat(%s) ckey, %s FROM %s WHERE gtag=%s \nUNION\n' % (kcols, ncols, stbl, rtag)
-    sql2 = 'SELECT t1.gtag,t1.ckey, %s\n' % ccols
-    sql3 = 'FROM (SELECT concat(%s) ckey, gtag, %s FROM %s WHERE gtag IN (%s)) t1\n' % (kcols, ncols, stbl, ctags)
-    sql4 = 'LEFT JOIN (SELECT concat(%s) ckey, gtag, %s FROM %s WHERE gtag=%s) t2\n' % (kcols, ncols, stbl, rtag)    
-    sqlq = '%s%s%s%sOn t1.ckey=t2.ckey ORDER BY ckey, gtag' % (sql1, sql2, sql3, sql4)
+    if ncols != '': ncols = ',' + ncols
+    if ccols != '': ccols = ',' + ccols
+    sql1 = 'SELECT concat("*",gtag) gtag, concat(%s) %s %s FROM %s WHERE gtag=%s %s\nUNION\n' % (kcols, ckey, ncols, stbl, rtag, cd)
+    sql2 = 'SELECT t1.gtag,concat(%s) %s %s\n' % (kcol1,ckey,ccols)
+    sql3 = 'FROM (SELECT * FROM %s WHERE gtag IN (%s) %s) t1\n' % (stbl, ctags, cd)
+    sql4 = 'LEFT JOIN (SELECT * FROM %s WHERE gtag=%s %s) t2\n' % (stbl, rtag, cd)    
+    sqlq = '%s%s%s%sOn %s ORDER BY %s, gtag' % (sql1, sql2, sql3, sql4, onk, ckey)
     
     return sqlq
     
