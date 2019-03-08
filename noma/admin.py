@@ -1,5 +1,6 @@
 import json
 from django.contrib import admin
+from inline_admin_extensions.admin import PaginationInline
 from .models import NomaGrp, NomaSet, NomaGrpSet, NomaFunc, NomaQFunc, NomaStrMap, NomaSetAct, queGrp, queSet, queGrpSet, queSetSql
 from .forms import NomaSetActForm, NomaGrpForm, NomaGrpSetForm, NomaExecForm, queSetSqlForm, queGrpForm, queExecForm
 from .utils import nomaInfo, nomaCount, queInfo, queCount
@@ -8,6 +9,7 @@ from django.shortcuts import redirect, render
 from django.urls import path
 from .tasks import nomaExec, nomaQExe
 from django.http import HttpResponse
+from django.forms import BaseInlineFormSet
 
 class NomaAdminSite(AdminSite):
     site_header = "NOMA Portal"
@@ -29,10 +31,10 @@ class NomaQFuncAdmin(admin.ModelAdmin):
     list_display = ('epr', 'pars', 'desc')
     save_as = True
 
-class NomaGrpSetInline(admin.TabularInline):
+class NomaGrpSetInline(PaginationInline):
     model = NomaGrpSet
     form = NomaGrpSetForm
-    raw_id_fields = ('set',)
+    #raw_id_fields = ('set',)
     extra = 0
     class Media:
         css = { "all" : ("css/hide_admin_original.css",) }

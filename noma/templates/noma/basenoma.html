@@ -42,10 +42,18 @@
                 if (data.state == 'PENDING') {
                     frm.html('Please wait...');
                 }
-                else if (data.state == 'PROGRESS' || data.state == 'SUCCESS') {
+                else if (data.result.status != 'ok') {
+                    frm.html(data.result.status + data.result.info);
+                }
+                else if (data.state == 'PROGRESS') {
                     pgrbar.css('display', 'inline');
                     pgrbar.val(data.result.percent);
-                    frm.html('Set Executed ' + data.result.current + ' out of ' + data.result.total);
+                    frm.html('Set Executed: ' + data.result.current + ' out of ' + data.result.total);
+                }
+                else if (data.state == 'SUCCESS') {
+                    pgrbar.css('display', 'inline');
+                    pgrbar.val(data.result.percent);
+                    frm.html('Set Executed: ' + data.result.current + ' out of ' + data.result.total + ' Done!!!');
                 }
                 if (data.state != 'SUCCESS') {
                     setTimeout(function () {
@@ -54,7 +62,7 @@
                 }
             },
             error: function (data) {
-                frm.html("Something went wrong in get_task!");
+                frm.html(data.result.info);
             }
         });
     }

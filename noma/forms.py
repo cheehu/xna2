@@ -4,7 +4,7 @@ from .models import NomaSetAct, NomaGrp
 from django.conf import settings
 from django.forms import widgets
 from .utils import get_dbtbs, get_dirs
-   
+
 class NomaSetActForm(forms.ModelForm):
     class Meta:
         widgets = { 'seq': forms.NumberInput(attrs={'style': 'width:6ch'}),
@@ -48,9 +48,8 @@ class NomaGrpForm(forms.ModelForm):
 class NomaGrpSetForm(forms.ModelForm):
             
     def __init__(self, *args, **kwargs):
-        tblist = get_dbtbs('^(?!v_)')
         super().__init__(*args, **kwargs)
-        self.fields['ttbl'] = forms.ChoiceField(choices=tblist)
+        self.fields['ttbl'] = forms.ChoiceField(choices=get_dbtbs('^(?!v_)'))
         
                  
 class queGrpForm(forms.ModelForm):

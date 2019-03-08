@@ -1,6 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 from celery import shared_task, current_task
-import os, pathlib
+import os, pathlib, traceback
 from .models import NomaGrp, NomaSet, queGrp, queSet, NomaStrMap
 from .utils import nomaMain, nomaRetrace, BDIR, ODIR
 from django.db import connection, connections
@@ -58,15 +58,23 @@ def nomaExec(id, total_count):
                     tf = "'%s'" % ('/'.join(fn for fn in str(tfile).split('\\')))
                     sqlq = "LOAD DATA LOCAL INFILE %s INTO TABLE %s FIELDS TERMINATED BY '\t' (%s)" % (tf, grpset.ttbl, hdr)
                     with connections['xnaxdr'].cursor() as cursor:
-                        cursor.execute(sqlq)
-                    f.write("Succesfully Loaded:\n  %s\n\n" % sqlq)
-                current_task.update_state(state='PROGRESS',
-                                          meta={'current': i, 'total': total_count,
+                        try:
+                            cursor.execute(sqlq)
+                            f.write("Succesfully Loaded:\n  %s\n\n" % sqlq)
+                            current_task.update_state(state='PROGRESS',
+                                          meta={'current': i, 'total': total_count, 'status': 'ok', 
                                                 'percent': int((float(i) / total_count) * 100)})
+                        except Exception as e:
+                            info = '"%s"' % e
+                            #info = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+                            sta = 'Error occurs at NomaSet %s -- ' % set.name
+                            current_task.update_state(state='FAILURE', meta={'status': sta, 'info': info})
+                            return {'status': sta, 'info': info}
+                
         else:
             f.write("       No file matching %s\n\n" % grpset.sfile)     
     f.close()
-    return {'current': total_count, 'total': total_count, 'percent': 100}
+    return {'current': total_count, 'total': total_count, 'percent': 100, 'status': 'ok'}
 
 @shared_task
 def nomaQExe(id, total_count):
@@ -102,20 +110,27 @@ def nomaQExe(id, total_count):
             hl = 'internal:%s!A1' % sq.name
             Indexsheet.write_url(j+1,1, hl, string='%s: %s' % (sq.name,ps))
             qfun = 'noma.tfunc.%s%s' % (sq.qfunc, pars)
-            sqlq = eval(qfun) 
-            if str(sq.qfunc) == 'q_delete':
-                with connections['xnaxdr'].cursor() as cursor:
-                    cursor.execute(sqlq)
-            else: excelout(sqlq,writer,workbook,sq.name,ldir)
-            f.write("       Succesfully Executed:\n\n")
-            current_task.update_state(state='PROGRESS',
-                                      meta={'current': i, 'total': total_count,
+            try:
+                sqlq = eval(qfun) 
+                if str(sq.qfunc) == 'q_delete':
+                    with connections['xnaxdr'].cursor() as cursor:
+                        cursor.execute(sqlq)
+                else: excelout(sqlq,writer,workbook,sq.name,ldir)
+                f.write("       Succesfully Executed:\n\n")
+                current_task.update_state(state='PROGRESS',
+                                          meta={'current': i, 'total': total_count, 'status': 'ok',
                                             'percent': int((float(i) / total_count) * 100)})
-        f.write("\n")
+            except Exception as e:
+                info = '"%s"' % e
+                #info = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+                sta = 'Error occurs at %s -- ' % sq.name
+                current_task.update_state(state='FAILURE', meta={'status': sta, 'info': info})
+                return {'status': sta, 'info': info}
         
+        f.write("\n")
     writer.save()
     f.close()
-    return {'current': total_count, 'total': total_count, 'percent': 100}
+    return {'current': total_count, 'total': total_count, 'percent': 100, 'status': 'ok',}
 
     
 def excelout(sqlq,writer,workbook,sqn,ldir):
