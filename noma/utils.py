@@ -1,7 +1,7 @@
 import os, pathlib, zipfile, pandas as pd
 from django.conf import settings
 from django.db import connection, connections
-import re, mmap, json, codecs
+import re, mmap, json, codecs, traceback
 import noma.tfunc
 
 BDIR = pathlib.Path(settings.GRP_DIR)
@@ -40,14 +40,15 @@ def nomaInfo(nomagrp, id, nomaset):
         log_content = log_content + "Execute NOMA Set: " + set.name + "\n"
         log_content = log_content + "   Set Type : " + set.type + "\n"
         log_content = log_content + "   Target Table: " + grpset.ttbl + "\n"
-        sfile = sdir / grpset.sfile
+        sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
         log_content = '%s   Source Files: %s\n' % (log_content, sfile)
-        sfiles = list(sdir.glob(grpset.sfile))
+        sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles:
             for sfile in sfiles:
                 log_content = log_content + "       " + sfile.name  + "\n"
         else:
-            log_content = log_content + "       No file matching " + grpset.sfile + "\n"
+            #log_content = log_content + "       No file matching " + grpset.sfile + "\n"
+            log_content = '%s       No file matching %s \n' % (log_content, grpset.sfile if grp.sfile == None else grp.sfile)
         log_content = log_content + "   NOMA Actions Sequences:\n"
         for act in set.acts.all():
             log_content = log_content + "       " + str(act.seq)  + " - " +  str(act.fname) + "\n"
@@ -61,8 +62,8 @@ def nomaCount(nomagrp, id, nomaset):
     task_count = 0
     for grpset in grpsets:
         set = nomaset.objects.get(name=grpset.set)
-        sfile = sdir / grpset.sfile
-        sfiles = list(sdir.glob(grpset.sfile))
+        sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
+        sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles: task_count += len(sfiles)
     return task_count
     
@@ -209,7 +210,62 @@ def getPRecords(dfsf,sfa):
                     resq += reso[int(pt[0])][int(pt[1]):]
             res.append(resq)
     return res 
+
+def getERecords(sf,sepr,eepr):
+    try:
+        skr = range(0,sepr[2]) if sepr[1] == None else range(sepr[1]+1,sepr[1]+sepr[2]+1)
+        with open(sf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
+            df = pd.read_excel(s,sepr[0],header=sepr[1],skiprows=skr,usecols=eepr[0],dtype=str)
+        sr = 0
+        if sepr[3] != None:
+            ca = sepr[3].split(':')
+            cf = ca[0] if ca[0].isdigit() else '"%s"' % ca[0]
+            #cd = 'df[%s]=="%s"' % (cf, 'nan' if ca[1] == '' else ca[1])
+            cd = 'df[%s].str.contains("%s")' % (cf, 'nan' if ca[1] == '' else ca[1])
+            er = df.index[eval(cd)]
+            if not er.empty: 
+                sr = er[0]
+                df = df[sr:]
+        if eepr[1] != None:
+            ca = eepr[1].split(':')
+            cf = ca[0] if ca[0].isdigit() else '"%s"' % ca[0]
+            cd = 'df[%s].str.contains("%s")' % (cf, 'nan' if ca[1] == '' else ca[1])
+            er = df.index[eval(cd)]
+            if not er.empty: df = df[:er[0]-sr]
+    except Exception as e:
+        info = '"%s"' % e
+        #info = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+        df = 'Error!!!: %s' % info        
+    return df
+
+def getEFields(df, acts, vs, outf, smap):
+    for row,rec in df.iterrows():
+        radd, skipf = True, 0
+        varr = [[] for y in range(10)]
+        vals = list(vs)
+        for idx, act in enumerate(acts):
+            if skipf > 0: 
+                skipf -= 1
+                continue
+            se = int(act.sepr) if act.sepr.isdigit() else act.sepr
+            fs, fe = act.spos, act.epos
+            val = '' if rec[se] == 'nan' else rec[se][fs:fe]
+            if act.tfunc != None:
+                tfun = 'noma.tfunc.%s(%s)' % (act.tfunc, act.nepr)
+                val = eval(tfun) 
+            if act.varr != None: varr[act.varr].append(val)
+            if act.fname: vals.append(val)
+            if act.fepr != None:
+                if not re.search(act.fepr, val): 
+                    if act.skipf == 0: 
+                        radd = False
+                        break
+                    skipf = act.skipf
+            else: skipf = act.skipf
             
+        if radd: outf.write('%s\n' % '\t'.join(va for va in vals))
+
+    
 def nomaMain(sf, tf, set, acts, smap, dfsf, gtag):
     if set.type == 'tx':
         with open(sf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
@@ -250,6 +306,16 @@ def nomaMain(sf, tf, set, acts, smap, dfsf, gtag):
         with open(tf, 'w') as fw:
             getBFields(res, acts, fw, sfa, dfsf, smap)
         res = "Successfully Executed " + set.name
+    elif set.type == 'xl':
+        sepr, eepr = eval('list(%s)' % set.sepr), eval('list(%s)' % set.eepr)
+        df = getERecords(sf,sepr,eepr)
+        if isinstance(df, str):
+            res = df
+        else:
+            with open(tf, 'w') as fw:
+                iniv = [] if gtag == None else [gtag]
+                getEFields(df, acts, iniv, fw, smap)
+            res = "Successfully Executed " + set.name
     
     return res
 
@@ -321,7 +387,7 @@ def nomaExecT(sf,strm, cstyp):
         sf = sfiles[0]
         dfsf = dfgf.get_group(sfiles[0])
     dfsm = pd.DataFrame.from_records(strm)
-    sm = dfsm.groupby('ctag')
+    sm = dfsm.groupby('ctag_id')
     smap = {}
     for name,group in sm:
         smap[name] = {}

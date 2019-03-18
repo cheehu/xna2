@@ -144,6 +144,23 @@ def repstr1(val,dc,tl):
 def trim(val,s,e):
     return val[s:e]
     
+def xl_col(rec,cols,cd,dc):
+    cls, cv = [], ''
+    for cos in cols.split('&'): cls += eval('list(range(%s))' % cos)
+    for c in cls:
+        if re.search(cd,rec[c]):
+            cs = str(c)
+            cv = dc[cs] if cs in dc else 'n.a.'
+            if cv == 'NBR': cv = rec[c]
+            break
+    return cv
+
+def xl_colv(rec,cols,cd):
+    cls = []
+    for cos in cols.split('&'): cls += eval('list(range(%s))' % cos)
+    cv = ' '.join(rec[c] for c in cls if re.search(cd,rec[c]))
+    return cv
+    
 
     
 def q_basic(stbl, flds=['*'], cond=''):

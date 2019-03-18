@@ -8,6 +8,7 @@ class NomaGrp(models.Model):
     sdir = models.CharField(max_length=200)
     ldir = models.CharField(max_length=200)
     gtag = models.CharField('Tag', max_length=100, blank=True, null=True)
+    sfile = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         db_table = 'noma_grp'
@@ -25,6 +26,7 @@ class NomaSet(models.Model):
         ('js', 'JSON'),
         ('bi', 'Binary'),
         ('p2', 'PCAP2pass'),
+        ('xl', 'Excel'),
     )
     type = models.CharField(max_length=2, choices=stypes, default='tx')
     sepr = models.CharField(max_length=100, blank=True, null=True)
@@ -178,20 +180,34 @@ class queSetSql(models.Model):
     def __str__(self):
         return str(self.set) + ' - ' + str(self.seq)
 
+        
+class NomaStrMapSet(models.Model):
+    name = models.CharField(max_length=20, primary_key=True)
+    desc = models.CharField('Description', max_length=200, blank=True, default='')
+    
+    class Meta:    
+        db_table = 'noma_strmap_set'
+        verbose_name_plural = " [K] Strings Maps"
+        
+    def __str__(self):
+        return self.name        
+
+
 class NomaStrMap(models.Model):
-    ctag = models.CharField(max_length=20,default='default')
-    ostr = models.CharField(max_length=50)
+    ctag = models.ForeignKey(NomaStrMapSet,related_name='Maps',on_delete=models.CASCADE)
+    #ctag = models.CharField(max_length=20)
+    ostr = models.CharField(max_length=200)
     cstr = models.CharField(max_length=50, blank=True, default='')
     desc = models.CharField(max_length=200, blank=True, null=True)
     
     class Meta:
         db_table = 'noma_strmap'
         unique_together = (('ctag', 'ostr'),)
-        verbose_name_plural = ' [K] Strings Maps'
+        verbose_name_plural = ' [K] Strings Map'
         ordering = ['ctag', 'ostr']
         
     def __str__(self):
-        return self.ostr
+        return str(self.ctag) + ' - ' + str(self.ostr)
 
 
         

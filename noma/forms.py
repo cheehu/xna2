@@ -34,6 +34,8 @@ class NomaGrpForm(forms.ModelForm):
     class Meta:
         widgets = { 'name': forms.TextInput(attrs={'size': 30}),
                     'desc': forms.TextInput(attrs={'size': 80}),
+                    'sdir': forms.TextInput(attrs={'size': 60}),
+                    'sfile': forms.TextInput(attrs={'size': 60}),
                  } 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -75,6 +77,14 @@ class queSetSqlForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['stbl'] = forms.ChoiceField(choices=get_dbtbs('.+'))
+        
+        
+class NomaStrMapForm(forms.ModelForm):
+    class Meta:
+        widgets = { 'ostr': forms.TextInput(attrs={'size': 100}),
+                    'cstr': forms.TextInput(attrs={'size': 30}),
+                    'desc': forms.TextInput(attrs={'size': 100}),
+        		 }
                  
                  
 class NomaExecForm(forms.Form):

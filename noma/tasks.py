@@ -16,7 +16,7 @@ def nomaExec(id, total_count):
     f=open(ldir / (grp.name + '.log'), "w+")
     f.write("Executing NOMA Group: %s from Source DIR: %s\n" % (grp, sdir))
     dfsm = pd.DataFrame.from_records(NomaStrMap.objects.all().values())
-    sm = dfsm.groupby('ctag')
+    sm = dfsm.groupby('ctag_id')
     smap = {}
     for name,group in sm:
         smap[name] = {}
@@ -35,7 +35,7 @@ def nomaExec(id, total_count):
             if act.fname != None and act.fname not in hdrs: hdrs.append(act.fname)
             f.write("       %s  -  %s  -  %s   -  %s\n" % (act.seq, act.fname, act.sepr, act.eepr))
         f.write("\n")
-        sfile = sdir / grpset.sfile
+        sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
         tfile = ldir / (set.name + '.tsv')
         f.write("   Source Files: %s\n" % sfile)
         if set.type == 'p2':
@@ -43,7 +43,7 @@ def nomaExec(id, total_count):
             dfgf = df.groupby('pfile')
             for name in dfgf: sfiles.append(name.strip())
         else:
-            sfiles = list(sdir.glob(grpset.sfile))
+            sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles:
             for sfile in sfiles:
                 dfsf = dfgf.get_group(sfile) if set.type == 'p2' else ''
@@ -72,7 +72,7 @@ def nomaExec(id, total_count):
                             return {'status': sta, 'info': info}
                 
         else:
-            f.write("       No file matching %s\n\n" % grpset.sfile)     
+            f.write("       No file matching %s\n\n" % grpset.sfile if grp.sfile == None else grp.sfile)     
     f.close()
     return {'current': total_count, 'total': total_count, 'percent': 100, 'status': 'ok'}
 

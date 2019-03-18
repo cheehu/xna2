@@ -1,8 +1,8 @@
 import json
 from django.contrib import admin
 from inline_admin_extensions.admin import PaginationInline
-from .models import NomaGrp, NomaSet, NomaGrpSet, NomaFunc, NomaQFunc, NomaStrMap, NomaSetAct, queGrp, queSet, queGrpSet, queSetSql
-from .forms import NomaSetActForm, NomaGrpForm, NomaGrpSetForm, NomaExecForm, queSetSqlForm, queGrpForm, queExecForm
+from .models import NomaGrp, NomaSet, NomaGrpSet, NomaFunc, NomaQFunc, NomaStrMap, NomaStrMapSet, NomaSetAct, queGrp, queSet, queGrpSet, queSetSql
+from .forms import NomaSetActForm, NomaGrpForm, NomaGrpSetForm, NomaExecForm, queSetSqlForm, queGrpForm, queExecForm, NomaStrMapForm
 from .utils import nomaInfo, nomaCount, queInfo, queCount
 from django.contrib.admin import AdminSite
 from django.shortcuts import redirect, render
@@ -23,9 +23,20 @@ class NomaFuncAdmin(admin.ModelAdmin):
     list_display = ('epr', 'pars', 'desc')
     save_as = True
 
-class NomaStrMapAdmin(admin.ModelAdmin):
-    list_display = ('ostr', 'ctag', 'cstr', 'desc')
+    
+class NomaStrMapInline(admin.TabularInline):
+    model = NomaStrMap
+    form = NomaStrMapForm
+    extra = 0
+    class Media:
+        css = { "all" : ("css/hide_admin_original.css",) }            
+    
+class NomaStrMapSetAdmin(admin.ModelAdmin):
+    list_display = ('name', 'desc')
+    fields = [('name', 'desc')]
+    inlines = [NomaStrMapInline]
     save_as = True
+    
 
 class NomaQFuncAdmin(admin.ModelAdmin):
     list_display = ('epr', 'pars', 'desc')
@@ -50,7 +61,7 @@ class NomaSetActInline(admin.TabularInline):
 class NomaGrpAdmin(admin.ModelAdmin):
     form = NomaGrpForm
     list_display = ('name', 'desc', 'sdir', 'ldir')
-    fields = [('name', 'sdir', 'ldir'), ('gtag','desc')]
+    fields = [('name', 'gtag', 'desc'), ('sdir', 'sfile', 'ldir')]
     inlines = [NomaGrpSetInline]
     save_as = True
     
@@ -135,7 +146,7 @@ class queSetAdmin(admin.ModelAdmin):
     save_as = True
  
 noma_admin_site.register(NomaFunc, NomaFuncAdmin)  
-noma_admin_site.register(NomaStrMap, NomaStrMapAdmin)     
+noma_admin_site.register(NomaStrMapSet, NomaStrMapSetAdmin)     
 noma_admin_site.register(NomaGrp, NomaGrpAdmin)
 noma_admin_site.register(NomaSet, NomaSetAdmin)
 noma_admin_site.register(queGrp, queGrpAdmin)
