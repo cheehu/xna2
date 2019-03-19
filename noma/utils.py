@@ -211,16 +211,14 @@ def getPRecords(dfsf,sfa):
             res.append(resq)
     return res 
 
-def getERecords(sf,sepr,eepr):
+def getERecords(xl,sepr,eepr):
     try:
         skr = range(0,sepr[2]) if sepr[1] == None else range(sepr[1]+1,sepr[1]+sepr[2]+1)
-        with open(sf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
-            df = pd.read_excel(s,sepr[0],header=sepr[1],skiprows=skr,usecols=eepr[0],dtype=str)
+        df = xl.parse(sepr[0],header=sepr[1],skiprows=skr,usecols=eepr[0],dtype=str)
         sr = 0
         if sepr[3] != None:
             ca = sepr[3].split(':')
             cf = ca[0] if ca[0].isdigit() else '"%s"' % ca[0]
-            #cd = 'df[%s]=="%s"' % (cf, 'nan' if ca[1] == '' else ca[1])
             cd = 'df[%s].str.contains("%s")' % (cf, 'nan' if ca[1] == '' else ca[1])
             er = df.index[eval(cd)]
             if not er.empty: 
@@ -266,7 +264,7 @@ def getEFields(df, acts, vs, outf, smap):
         if radd: outf.write('%s\n' % '\t'.join(va for va in vals))
 
     
-def nomaMain(sf, tf, set, acts, smap, dfsf, gtag):
+def nomaMain(sf, tf, set, acts, smap, dfsf, gtag, xlobj):
     if set.type == 'tx':
         with open(sf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
             res = getRecords(s, set.sepr, set.eepr)
@@ -308,7 +306,7 @@ def nomaMain(sf, tf, set, acts, smap, dfsf, gtag):
         res = "Successfully Executed " + set.name
     elif set.type == 'xl':
         sepr, eepr = eval('list(%s)' % set.sepr), eval('list(%s)' % set.eepr)
-        df = getERecords(sf,sepr,eepr)
+        df = getERecords(xlobj,sepr,eepr)
         if isinstance(df, str):
             res = df
         else:

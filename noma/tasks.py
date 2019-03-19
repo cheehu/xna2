@@ -21,7 +21,7 @@ def nomaExec(id, total_count):
     for name,group in sm:
         smap[name] = {}
         for row,data in group.iterrows(): smap[name].update({data['ostr'] : data['cstr']})
-    i = 0
+    i, xlobj, pfile = 0, None, ''
     for grpset in grp.sets.all():
         set = NomaSet.objects.get(name=grpset.set)
         f.write("\nExecuting NOMA Set: %s\n" % set.name)
@@ -47,9 +47,11 @@ def nomaExec(id, total_count):
         if sfiles:
             for sfile in sfiles:
                 dfsf = dfgf.get_group(sfile) if set.type == 'p2' else ''
+                if set.type == 'xl' and sfile != pfile: xlobj = pd.ExcelFile(sfile)
                 f.write("       %s\n" % sfile.name)
                 i = i + 1
-                msg = nomaMain(sfile, tfile, set, acts, smap, dfsf, grp.gtag)
+                msg = nomaMain(sfile, tfile, set, acts, smap, dfsf, grp.gtag, xlobj)
+                pfile = sfile
                 f.write("%s\n" % msg)
                 f.flush()
                 os.fsync(f.fileno())
