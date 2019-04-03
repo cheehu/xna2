@@ -123,12 +123,22 @@ def conc(varr,d):
     return d.join(va for va in varr)
 
 def repstr(val,ostr,nstr):
-    return re.sub(ostr,nstr,val)    
+    return re.sub(ostr,nstr,val)
+
+def rep_if(val,ostr,ystr,nstr=''):
+    if nstr == '': nstr = val
+    cv = ystr if re.search(ostr,val) else nstr 
+    return cv    
     
 def nume(val):
     if not val.isdigit(): val = ''
     return val
 
+def num_th(val,th):
+    val = re.sub(",",".",val)
+    cv = str(int(float(val) * th))
+    return cv
+    
 def repstra(val,dc,od,nd,tl):
     vs = re.sub(od,',',val).split(',')
     cvs = []
@@ -140,6 +150,12 @@ def repstra(val,dc,od,nd,tl):
 def repstr1(val,dc,tl):
     cv = dc[val] if val in dc else val[0:tl]
     return cv
+    
+def repstr2(val,od,nd,sfx):
+    vs = re.sub(od,',',val).split(',')
+    cv = '' if val == '' else nd.join('%s%s' % (v,sfx) for v in vs)
+    return cv
+    
 
 def trim(val,s,e):
     return val[s:e]
@@ -155,12 +171,23 @@ def xl_col(rec,cols,cd,dc):
             break
     return cv
 
-def xl_colv(rec,cols,cd):
+def xl_colv(rec,cols,cd,dl=' '):
     cls = []
     for cos in cols.split('&'): cls += eval('list(range(%s))' % cos)
-    cv = ' '.join(rec[c] for c in cls if re.search(cd,rec[c]))
+    cv = dl.join(rec[c] for c in cls if re.search(cd,rec[c]))
     return cv
-    
+
+def xl_hdrv(rec,cols,cd,dc):
+    cls = []
+    for cos in cols.split('&'): cls += eval('list(range(%s))' % cos)
+    cv = ','.join('%s=%s' % (dc[str(c)] if str(c) in dc else "n_a", cd) for c in cls if re.search(cd,rec[c]))
+    return cv
+
+def xl_hdr_v(rec,cols,dc):
+    cls = []
+    for cos in cols.split('&'): cls += eval('list(range(%s))' % cos)
+    cv = ','.join('%s=%s' % (dc[str(c)] if str(c) in dc else "n_a", rec[c]) for c in cls)
+    return cv    
 
     
 def q_basic(stbl, flds=['*'], cond=''):
