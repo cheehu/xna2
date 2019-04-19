@@ -104,8 +104,8 @@ def getFields(po, sep, acts, vs, outf, smap):
             if act.tfunc != None:
                 tfun = 'noma.tfunc.%s(%s)' % (act.tfunc, act.nepr)
                 val = eval(tfun) 
-            if act.varr != None: varr[act.varr].append(val)
             if nepr == None:
+                if act.varr != None: varr[act.varr].append(val)
                 if act.fname: vals.append(val)
                 if act.fepr != None:
                     if not re.search(act.fepr, val): 
@@ -115,6 +115,7 @@ def getFields(po, sep, acts, vs, outf, smap):
                         skipf = act.skipf
                 else: skipf = act.skipf
             else:
+                if act.varr != None: val = varr[act.varr][0]
                 getFields(val,nepr,acts[idx+1:],vals,outf,smap)
                 break
         if radd and nepr == None:

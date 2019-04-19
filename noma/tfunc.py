@@ -120,11 +120,38 @@ def dumm(ep):
     return ep
     
 def conc(varr,d):
-    return d.join(va for va in varr)
+    return d.join(va for va in varr if va != '')
 
 def repstr(val,ostr,nstr):
     return re.sub(ostr,nstr,val)
+    
+def x_col(val,dp,sp,ep,dl):
+    return dl.join(r[sp:ep].strip() for r in val.split(dp))
 
+def steps(n,s,d=','):    
+    cv = d.join('%s&&%s' % (x-s,x-1) for x in range(s,n+1,s))
+    l = n % s
+    if l > 0: cv += '%s%s&&%s' % ('' if cv == '' else ',', n-l, n-1)
+    return cv
+    
+def x_grp(va,k,fc=['G'],dp=',',d=','):
+    data = {}
+    data.update({k:va[k].split(dp)})
+    if fc[0] == 'G':
+        df = pd.DataFrame(data).sort_values(k).groupby(k).count()
+        return d.join(idx for idx, row in df.iterrows())
+    data.update({fc[1]:va[fc[1]].split(dp) if fc[0] != 'S' else list(map(int, va[fc[1]].split(dp)))})
+    if fc[0] == 'C':
+        df = pd.DataFrame(data).sort_values(k).groupby(k).count()
+    elif fc[0] == 'S':
+        df = pd.DataFrame(data).sort_values(k).groupby(k).sum()
+    elif fc[0] == 'F':
+        df = pd.DataFrame(data).sort_values(k).groupby(k).first()
+    elif fc[0] == 'L':
+        df = pd.DataFrame(data).sort_values(k).groupby(k).last()
+    return d.join('%s:%s' % (idx,row[fc[1]]) for idx, row in df.iterrows())
+    
+    
 def rep_if(val,ostr,ystr,nstr=''):
     if nstr == '': nstr = val
     cv = ystr if re.search(ostr,val) else nstr 
@@ -134,11 +161,13 @@ def nume(val):
     if not val.isdigit(): val = ''
     return val
 
-def num_th(val,th):
-    val = re.sub(",",".",val)
-    cv = str(int(float(val) * th))
+def num_th(val,th,tl=5):
+    if val.isdigit():
+        val = re.sub(",",".",val)
+        cv = str(int(float(val) * th))
+    else: cv = val[0:tl]
     return cv
-    
+
 def repstra(val,dc,od,nd,tl):
     vs = re.sub(od,',',val).split(',')
     cvs = []
@@ -155,6 +184,16 @@ def repstr2(val,od,nd,sfx):
     vs = re.sub(od,',',val).split(',')
     cv = '' if val == '' else nd.join('%s%s' % (v,sfx) for v in vs)
     return cv
+
+def nx_line(va, sepr,l,n=1):
+    stx = '^(.*?)%s(.*?\n){%s}' % (sepr, n)
+    a = re.search(stx, va)
+    if a != None:
+        sp = a.end() + len(a.group(1))
+        ep = sp + l
+        a = va[sp:ep].strip()
+    return '' if a == None else a
+    
     
 
 def trim(val,s,e):
