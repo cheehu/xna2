@@ -11,6 +11,7 @@ def get_dbtbs(ptt):
     with connections['xnaxdr'].cursor() as cursor:
         cursor.execute('SHOW TABLES')
     tbls = [(tb[0],tb[0]) for tb in cursor if re.search(ptt,tb[0])]
+    tbls.append(('-----','-----'))
     return tuple(tbls)
 
 def get_dirs(spath,fx):

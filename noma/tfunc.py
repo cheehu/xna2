@@ -1,6 +1,7 @@
 from datetime import datetime
-import re, pandas as pd
+import re, csv, pandas as pd
 from django.db import connection, connections
+G_SDICT = {}
 
 def to_txt(bv):
     return bv.decode()
@@ -194,8 +195,17 @@ def nx_line(va, sepr,l,n=1):
         a = va[sp:ep].strip()
     return '' if a == None else a
     
+def lookup_c(st, sf, kc, vc):
+    if sf not in G_SDICT:
+        G_SDICT[sf] = {}
+        csvf = G_SDICT['ldir'] / ('%s.tsv' % sf)
+        if csvf.is_file():
+            with open(csvf) as s: 
+                cf = csv.reader(s, delimiter='\t')
+                for row in cf: G_SDICT[sf].update({row[kc] : row[vc]})
+    cv = G_SDICT[sf][st] if st in G_SDICT[sf] else st
+    return cv
     
-
 def trim(val,s,e):
     return val[s:e]
     

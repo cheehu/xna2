@@ -151,6 +151,7 @@ class queGrpSet(models.Model):
        return str(self.grp) + ' - ' + str(self.set)
 
 class NomaQFunc(models.Model):
+    #epr = models.CharField(max_length=50, primary_key=True)
     epr = models.CharField(unique=True, max_length=50)
     pars = models.CharField(max_length=200, blank=True, null=True)
     desc = models.CharField(max_length=200, blank=True, default='')

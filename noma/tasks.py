@@ -13,6 +13,8 @@ def nomaExec(id, total_count):
     sdir = BDIR / grp.sdir
     if sdir.suffix == '.zip': sdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
     ldir = ODIR / grp.ldir
+    noma.tfunc.G_SDICT.clear()
+    noma.tfunc.G_SDICT.update({'ldir':ldir})
     f=open(ldir / (grp.name + '.log'), "w+")
     f.write("Executing NOMA Group: %s from Source DIR: %s\n" % (grp, sdir))
     dfsm = pd.DataFrame.from_records(NomaStrMap.objects.all().values())
@@ -56,6 +58,7 @@ def nomaExec(id, total_count):
                 f.flush()
                 os.fsync(f.fileno())
                 if msg[:8] != 'Error!!!':
+                    if grpset.ttbl == '-----': continue
                     hdr = ','.join(hd for hd in hdrs)
                     tf = "'%s'" % ('/'.join(fn for fn in str(tfile).split('\\')))
                     sqlq = "LOAD DATA LOCAL INFILE %s INTO TABLE %s FIELDS TERMINATED BY '\t' (%s)" % (tf, grpset.ttbl, hdr)
