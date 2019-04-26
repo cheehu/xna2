@@ -2,7 +2,7 @@ from __future__ import absolute_import, unicode_literals
 from celery import shared_task, current_task
 import os, pathlib, traceback
 from .models import NomaGrp, NomaSet, queGrp, queSet, NomaStrMap
-from .utils import nomaMain, nomaRetrace, BDIR, ODIR
+from .utils import nomaMain, nomaRetrace, get_qtbs, BDIR, ODIR
 from django.db import connection, connections
 import pandas as pd
 import noma.tfunc
@@ -44,8 +44,9 @@ def nomaExec(id, total_count):
             df = pd.read_sql_query(grpset.sfile, connections['xnaxdr'])
             dfgf = df.groupby('pfile')
             for name in dfgf: sfiles.append(name.strip())
-        else:
-            sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
+        elif set.type == 'sq': 
+            if sfile.name in get_qtbs(): sfiles.append(sfile)
+        else: sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles:
             for sfile in sfiles:
                 dfsf = dfgf.get_group(sfile) if set.type == 'p2' else ''
@@ -66,10 +67,12 @@ def nomaExec(id, total_count):
                         try:
                             cursor.execute(sqlq)
                             f.write("Succesfully Loaded:\n  %s\n\n" % sqlq)
+                            if not grpset.ocsv: os.remove(tfile)
                             current_task.update_state(state='PROGRESS',
                                           meta={'current': i, 'total': total_count, 'status': 'ok', 
                                                 'percent': int((float(i) / total_count) * 100)})
                         except Exception as e:
+                            os.remove(tfile)
                             info = '"%s"' % e
                             #info = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
                             sta = 'Error occurs at NomaSet %s -- ' % set.name

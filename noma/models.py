@@ -27,6 +27,7 @@ class NomaSet(models.Model):
         ('bi', 'Binary'),
         ('p2', 'PCAP2pass'),
         ('xl', 'Excel'),
+        ('sq', 'Table/View'),
     )
     type = models.CharField(max_length=2, choices=stypes, default='tx')
     sepr = models.CharField(max_length=100, blank=True, null=True)

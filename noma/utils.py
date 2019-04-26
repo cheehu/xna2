@@ -14,6 +14,13 @@ def get_dbtbs(ptt):
     tbls.append(('-----','-----'))
     return tuple(tbls)
 
+def get_qtbs(ptt=''):
+    with connections['xnaxdr'].cursor() as cursor:
+        cursor.execute('SHOW TABLES')
+    if ptt == '': tbls = [tb[0] for tb in cursor]
+    else: tbls = [tb[0] for tb in cursor if re.search(ptt,tb[0])]
+    return tbls
+
 def get_dirs(spath,fx):
     sdir = pathlib.Path(spath)
     p = sdir.glob('**/*')
@@ -36,6 +43,7 @@ def nomaInfo(nomagrp, id, nomaset):
     if sdir.suffix == '.zip': sdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
     log_content = "NOMA Group:%s gtag:%s\n From Source DIR: %s\n\n" % (grp.name, grp.gtag, sdir)
     grpsets = grp.sets.all()
+    sfiles = []
     for grpset in grpsets:
         set = nomaset.objects.get(name=grpset.set)
         log_content = log_content + "Execute NOMA Set: " + set.name + "\n"
@@ -43,7 +51,13 @@ def nomaInfo(nomagrp, id, nomaset):
         log_content = log_content + "   Target Table: " + grpset.ttbl + "\n"
         sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
         log_content = '%s   Source Files: %s\n' % (log_content, sfile)
-        sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
+        if set.type == 'p2':
+            df = pd.read_sql_query(grpset.sfile, connections['xnaxdr'])
+            dfgf = df.groupby('pfile')
+            for name in dfgf: sfiles.append(name.strip())
+        elif set.type == 'sq': 
+            if sfile.name in get_qtbs(): sfiles.append(sfile)
+        else: sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles:
             for sfile in sfiles:
                 log_content = log_content + "       " + sfile.name  + "\n"
@@ -61,10 +75,17 @@ def nomaCount(nomagrp, id, nomaset):
     sdir = dirzip(grp.sdir)
     grpsets = grp.sets.all()
     task_count = 0
+    sfiles = []
     for grpset in grpsets:
         set = nomaset.objects.get(name=grpset.set)
         sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
-        sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
+        if set.type == 'p2':
+            df = pd.read_sql_query(grpset.sfile, connections['xnaxdr'])
+            dfgf = df.groupby('pfile')
+            for name in dfgf: sfiles.append(name.strip())
+        elif set.type == 'sq': 
+            if sfile.name in get_qtbs(): sfiles.append(sfile)
+        else: sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles: task_count += len(sfiles)
     return task_count
     
@@ -211,7 +232,18 @@ def getPRecords(dfsf,sfa):
                     pt = p.split(',')
                     resq += reso[int(pt[0])][int(pt[1]):]
             res.append(resq)
-    return res 
+    return res
+
+def getQRecords(sf, gtag):
+    cond = '' if gtag == None else ' WHERE gtag="%s"' % gtag 
+    sqlq = "SELECT * FROM %s%s" % (sf, cond)         
+    try:
+        df = pd.read_sql_query(sqlq, connections['xnaxdr'])
+    except Exception as e:
+        info = '"%s"' % e
+        #info = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+        df = 'Error!!!: %s' % info 
+    return df     
 
 def getERecords(xl,sepr,eepr):
     try:
@@ -316,7 +348,16 @@ def nomaMain(sf, tf, set, acts, smap, dfsf, gtag, xlobj):
                 iniv = [] if gtag == None else [gtag]
                 getEFields(df, acts, iniv, fw, smap)
             res = "Successfully Executed " + set.name
-    
+    elif set.type == 'sq':
+        df = getQRecords(sf.name,gtag)
+        if isinstance(df, str):
+            res = df
+        else:
+            with open(tf, 'w') as fw:
+                iniv = [] if gtag == None else [gtag]
+                getEFields(df, acts, iniv, fw, smap)
+            res = "Successfully Executed " + set.name
+        
     return res
 
 
