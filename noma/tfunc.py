@@ -1,27 +1,47 @@
 from datetime import datetime
-import re, csv, pandas as pd
+import codecs, re, csv, pandas as pd
 from django.db import connection, connections
 G_SDICT = {}
+G_DUPL = []
+G_QNO = []
 
+def to_test(ba):
+    return str(len(ba))
+
+def to_byte_str(ba):
+    return str(ba)[2:-1]
+
+def to_bytes(bs):
+    return bytes(codecs.decode(bs.strip(), 'unicode_escape'), 'iso_8859-1')
+
+def rstr_to_str(bs):
+    return bytes(codecs.decode(bs.strip(), 'unicode_escape'), 'iso_8859-1').decode()
+    
+def hex_to_int(bv):
+    return str(int(bv, 16))
+    
+def hex_to_byte(hv):
+    return bytes.fromhex(hv.strip())
+    
 def to_txt(bv):
     return bv.decode()
 
 def to_ipv4(bv):
     return ".".join(str(b) for b in bv)
         
-def to_intb(bv, s, l):
+def to_intbit(bv, s, l):
     e = int.from_bytes(bv,byteorder='big')
     d = 2 ** s
     c = d * ((2 ** l) - 1)
     return str(int((e & c) / d))
 
-def to_intbn(bv, s, l):
+def to_intbitn(bv, s, l):
     e = int.from_bytes(bv,byteorder='big')
     d = 2 ** s
     c = d * ((2 ** l) - 1)
     return int((e & c) / d)
         
-def to_hex(bv, d, n):
+def to_hex(bv, d=None, n=None):
     if d == None:
         return bv.hex()
     else:
@@ -42,12 +62,10 @@ def to_utc(bv,ed):
     return str(datetime.utcfromtimestamp(e))
 
 def to_sigp(pa,sm):
-    sig = 'unk'
     for p in pa:
-        if p in sm: 
-            sig = sm[p]
-            break
-    return sig
+        for k,v in sm.items():
+            if p in k.split(','): return v
+    return 'unk'
 
 def to_hdl(bv,s, l, hd):
     e = int.from_bytes(bv,byteorder='big')
@@ -59,53 +77,377 @@ def to_hdl(bv,s, l, hd):
 def i_var(iv):
     return str(iv)
     
-def i_vara(iv):
-    return ','.join(str(v) for v in iv)
+def i_vara(iv,dl):
+    return dl.join(str(v) for v in iv)
 
-def to_paylen(hdl):
-    ips = int(hdl[0])
-    ipl = int(hdl[1])
-    aps = int(hdl[3])
-    return str(ipl - (aps - ips))
+def to_paylen(bv,ver):
+    if ver == 6: 
+        cv = to_intBn(bv[:2])-8 if bv[2] == b'44' else to_intBn(bv[:2])
+    elif ver == 4: cv = to_intBn(bv[2:]) - to_intbitn(bv[0:1],0,4)*4
+    return str(cv) 
     
-def dupp(dupl,qno,iph,bs):
-    dup = 'N'
-    upid = '%s-%s-%s' % (iph[0],iph[1],iph[3])
-    if iph[0] != '0' and upid in dupl: dup = 'Y'
-    dupl[qno[0]] = upid
-    qno[0] = 0 if qno[0] == bs else qno[0] + 1 
-    return dup
-
-
-def defrag(dupl,recs,rno,skb,qno,iph,hdl,bs):
-    clen = int(hdl[1]) - int(hdl[2])*4
-    fr0 = '%s,%s,%s' % (rno, 50+skb, clen)
-    if iph[1] == '0' and iph[2] != '1': return fr0
-    frl = ['%s:%s' % (iph[1],fr0)]
-    rp, tlen = [None]*5, 0 
-    for i in range(1,15): 
+def dupp(bv,bs):
+    if bv in G_DUPL: return 'Y'
+    if bs > 0:
+        G_DUPL[G_QNO[0]] = bv
+        G_QNO[0] = 0 if G_QNO[0] == bs else G_QNO[0] + 1 
+    return 'N'
+    
+def defrag(recs,rno,skb,bv,va,bs):
+    tl = to_intBn(bv[2:4])
+    if tl == 0: return '0'
+    if tl < len(bv): bv = bv[:tl]
+    cv = str(bv[9])
+    ofs = to_intbitn(bv[6:8],0,13)
+    mf = to_intbit(bv[6:7],5,1)
+    hl = to_intbitn(bv[0:1],0,4)*4
+    fr0 = bv[8+hl:] if cv =='50' and ofs == 0 else bv[hl:]
+    if cv =='50' and mf == '0': 
+        pl = bv[-14] + 14
+        fr0 = fr0[:-pl]
+        cv = str(bv[-13])
+    if ofs == 0 and mf != '1':
+        va.append([rno,fr0])
+        return cv
+    rl = len(recs)
+    clen = tl - hl
+    pid0 = to_intB(bv[4:6])
+    frl = {ofs:[rno,fr0]}
+    tlen = ofs*8 + clen if ofs != 0 and mf == '0' else 0 
+    for i in range(1,20): 
         rn = rno + i
-        pid = to_intB(recs[rn][34+skb:36+skb])
-        ofs = to_intbn(recs[rn][36+skb:38+skb],0,13)
-        mf = to_intb(recs[rn][36+skb:37+skb],5,2)
-        csum = to_intB(recs[rn][40+skb:42+skb])
-        ipdl = to_intBn(recs[rn][32+skb:34+skb]) - to_intbn(recs[rn][30+skb:31+skb],0,4)*4
-        upid = '%s-%s-%s' % (pid, ofs, csum)
-        if upid not in dupl:
-            if pid == iph[0]: 
+        if rn >= rl: break
+        if recs[rn][28+skb:30+skb:].hex() != '0800': continue
+        rv = recs[rn][30+skb:]
+        if rv in G_DUPL: continue
+        tl = to_intBn(rv[2:4])
+        bv = rv[:tl]
+        ofs = to_intbitn(bv[6:8],0,13)
+        mf = to_intbit(bv[6:7],5,1)
+        pid = to_intB(bv[4:6])
+        if pid == pid0: 
+            hl = to_intbitn(bv[0:1],0,4)*4
+            ipdl = tl - hl
+            clen += ipdl
+            if ofs != 0 and mf == '0': tlen = ofs*8 + ipdl
+            nh = str(bv[9])
+            fr = bv[8+hl:] if nh =='50' and ofs == 0 else bv[hl:]
+            if nh =='50' and mf == '0': 
+                pl = bv[-14] + 14
+                fr = fr[:-pl]
+                cv = str(bv[-13])
+            frl.update({ofs:[rn, fr]})
+            G_DUPL[G_QNO[0]] = rv
+            G_QNO[0] = 0 if G_QNO[0] == bs else G_QNO[0] + 1 
+            if clen == tlen: break
+    frs = dict(sorted(frl.items()))
+    pid, ipd = '', b''
+    for k,v in frs.items():
+        pid += ',%s' % v[0]
+        ipd += v[1]
+    va.append([pid[1:],ipd])
+    return cv
+
+def defrag_g(recs,rno,bv,va,bs):
+    cv = str(bv[9])
+    ofs = to_intbitn(bv[6:8],0,13)
+    mf = to_intbit(bv[6:7],5,1)
+    hl = to_intbitn(bv[0:1],0,4)*4
+    fr0 = bv[8+hl:] if cv =='50' and ofs == 0 else bv[hl:]
+    if cv =='50' and mf == '0': 
+        pl = bv[-14] + 14
+        fr0 = fr0[:-pl]
+        cv = str(bv[-13])
+    if ofs == 0 and mf != '1':
+        va.append([recs.loc[rno,'pidxx'],fr0])
+        return cv
+    rl = len(recs)
+    clen = to_intBn(bv[2:4]) - hl
+    pid0 = to_intB(bv[4:6])
+    frl = {ofs:[recs.loc[rno,'pidxx'],fr0]}
+    tlen = ofs*8 + clen if ofs != 0 and mf == '0' else 0 
+    for i in range(1,20): 
+        rn = rno + i
+        if rn >= rl: break
+        bv = to_bytes(recs.loc[rn,'apd'])
+        ofs = to_intbitn(bv[6:8],0,13)
+        mf = to_intbit(bv[6:7],5,1)
+        pid = to_intB(bv[4:6])
+        if pid == pid0: 
+            hl = to_intbitn(bv[0:1],0,4)*4
+            ipdl = to_intBn(bv[2:4]) - hl
+            clen += ipdl
+            if ofs != 0 and mf == '0': tlen = ofs*8 + ipdl
+            nh = str(bv[9])
+            fr = bv[8+hl:] if nh =='50' and ofs == 0 else bv[hl:]
+            if nh =='50' and mf == '0': 
+                pl = bv[-14] + 14
+                fr = fr[:-pl]
+                cv = str(bv[-13])
+            frl.update({ofs:[recs.loc[rn,'pidxx'], fr]})
+            G_DUPL[G_QNO[0]] = bv
+            G_QNO[0] = 0 if G_QNO[0] == bs else G_QNO[0] + 1 
+            if clen == tlen: break
+    frs = dict(sorted(frl.items()))
+    pid, ipd = '', b''
+    for k,v in frs.items():
+        pid += '-%s' % v[0]
+        ipd += v[1]
+    va.append([pid[1:],ipd])
+    return cv
+    
+    
+def defrag6(recs,rno,skb,bv,va,bs):
+    cv = str(bv[6])
+    if cv != '44':
+        if cv == '50':
+            pl = len(bv) - bv[-14] - 14
+            fr0 = bv[48:pl]
+            cv = str(bv[-13])
+        else: fr0 = bv[40:]
+        va.append([rno,fr0])
+        return cv
+    rl = len(recs)
+    clen = to_intBn(bv[4:6]) - 8
+    pid0 = to_intB(bv[44:48])
+    ofs = to_intbitn(bv[42:44],3,13)
+    mf = to_intbit(bv[43:44],0,1)
+    cv = str(bv[40])
+    fr0 = bv[56:] if cv =='50' and ofs == 0 else bv[48:]
+    if cv =='50' and mf == '0': 
+        pl = bv[-14] + 14
+        fr0 = fr0[:-pl]
+        cv = str(bv[-13])
+    frl = {ofs:[rno,fr0]}
+    tlen = ofs*8 + clen if ofs != 0 and mf == '0' else 0 
+    for i in range(1,20): 
+        rn = rno + i
+        if rn >= rl: break
+        if recs[rn][28+skb:30+skb:].hex() != '86dd': continue
+        bv = recs[rn][30+skb:]
+        if bv in G_DUPL: continue
+        if str(bv[6]) == '44':
+            pid = to_intB(recs[rn][74+skb:78+skb])
+            if pid == pid0: 
+                ofs = to_intbitn(bv[42:44],3,13)
+                mf = to_intbit(bv[43:44],0,1)
+                ipdl = to_intBn(bv[4:6]) - 8
                 clen += ipdl
                 if ofs != 0 and mf == '0': tlen = ofs*8 + ipdl
-                frl.append('%s:%s,%s,%s' % (ofs, rn, 50+skb, ipdl))
-                dupl[qno[0]] = upid
-                qno[0] = 0 if qno[0] == bs else qno[0] + 1 
+                nh = str(bv[40])
+                fr = bv[56:] if nh =='50' and ofs == 0 else bv[48:]
+                if nh =='50' and mf == '0': 
+                    pl = bv[-14] + 14
+                    fr = fr[:-pl]
+                    cv = str(bv[-13])
+                frl.update({ofs:[rn, fr]})
+                G_DUPL[G_QNO[0]] = bv
+                G_QNO[0] = 0 if G_QNO[0] == bs else G_QNO[0] + 1 
                 if clen == tlen: break
-    frl.sort()
-    return '-'.join(f.split(':')[1] for f in frl)
+    frs = dict(sorted(frl.items()))
+    pid, ipd = '', b''
+    for k,v in frs.items():
+        pid += ',%s' % v[0]
+        ipd += v[1]
+    va.append([pid[1:],ipd])
+    return cv
 
-def apdata(rec,sp):
-    return rec[int(sp):]
+def defrag6g(recs,rno,bv,va,bs):
+    cv = str(bv[6])
+    if cv != '44':
+        if cv == '50':
+            pl = len(bv) - bv[-14] - 14
+            fr0 = bv[48:pl]
+            cv = str(bv[-13])
+        else: fr0 = bv[40:]
+        va.append([recs.loc[rno,'pidxx'],fr0])
+        return cv
+    rl = len(recs)
+    clen = to_intBn(bv[4:6]) - 8
+    pid0 = to_intB(bv[44:48])
+    ofs = to_intbitn(bv[42:44],3,13)
+    mf = to_intbit(bv[43:44],0,1)
+    cv = str(bv[40])
+    fr0 = bv[56:] if cv =='50' and ofs == 0 else bv[48:]
+    if cv =='50' and mf == '0': 
+        pl = bv[-14] + 14
+        fr0 = fr0[:-pl]
+        cv = str(bv[-13])
+    frl = {ofs:[recs.loc[rno,'pidxx'],fr0]}
+    tlen = ofs*8 + clen if ofs != 0 and mf == '0' else 0 
+    for i in range(1,20): 
+        rn = rno + i
+        if rn >= rl: break
+        bv = to_bytes(recs.loc[rn,'apd'])
+        if str(bv[6]) == '44':
+            pid = to_intB(bv[44:48])
+            if pid == pid0: 
+                ofs = to_intbitn(bv[42:44],3,13)
+                mf = to_intbit(bv[43:44],0,1)
+                ipdl = to_intBn(bv[4:6]) - 8
+                clen += ipdl
+                if ofs != 0 and mf == '0': tlen = ofs*8 + ipdl
+                nh = str(bv[40])
+                fr = bv[56:] if nh =='50' and ofs == 0 else bv[48:]
+                if nh =='50' and mf == '0': 
+                    pl = bv[-14] + 14
+                    fr = fr[:-pl]
+                    cv = str(bv[-13])
+                frl.update({ofs:[recs.loc[rn,'pidxx'], fr]})
+                G_DUPL[G_QNO[0]] = bv
+                G_QNO[0] = 0 if G_QNO[0] == bs else G_QNO[0] + 1 
+                if clen == tlen: break
+    frs = dict(sorted(frl.items()))
+    pid, ipd = '', b''
+    for k,v in frs.items():
+        pid += '-%s' % v[0]
+        ipd += v[1]
+    va.append([pid[1:],ipd])
+    return cv
     
+    
+def apdata(bv,tt,sgnp,va):
+    dl = len(bv)
+    if tt == '132':
+        sp = to_intBn(bv[14:16]) if bv[12] == 3 else 0
+        if dl > (12+sp) and bv[12+sp] == 0:
+                va.append(bv[sp+28:])
+                va.append(to_intbitn(bv[sp+13:sp+14],0,4) % 2)
+                va.append(to_intBn(bv[sp+16:sp+20]))
+                va.append(dl - sp - 28)
+        else: va.append('')
+    elif tt == '6': 
+        flg = to_intbitn(bv[13:14],0,4)
+        if flg == 0 or flg == 8:
+            hl = to_intbitn(bv[12:13],4,4) * 4
+            va.append(bv[hl:])
+            va.append(flg)
+            va.append(to_intBn(bv[4:8]))
+            va.append(dl - hl)
+        else: va.append('')
+    else: 
+        va.append(bv[16:]) if sgnp == 'gtp' else va.append(bv[8:])
+        va.append('')
+        va.append('')
+        va.append(dl - 16) if sgnp == 'gtp' else va.append(dl - 8)
+    return '' if va[0] == '' or va[3] == 0 else str(va[3])    
 
+
+def ap_msg(apd,sgnp='sip',dc=None):
+    if sgnp == 'sip':
+        m = re.search('(^(?=[A-Z]+\s(sip|tel):)|(?<=^SIP/2\.0\s))\S{3}', apd.decode('utf-8'))
+        cv = 'NaN' if m == None else m[0]
+    elif sgnp == 'dia': 
+        if apd[0] == 1 and to_intbitn(apd[4:5],0,4) == 0 and to_intbitn(apd[5:7],4,12) == 0:
+            cc = to_intB(apd[5:8])
+            cv = '%s%s' % (dc[cc] if cc in dc else cc, 'R' if to_intbitn(apd[4:5],4,4) > 7 else 'A')
+        else: cv = 'NaN'
+    elif sgnp == 'gtp': 
+        cv = 'ipv%s' % to_intbit(apd[0:1],4,4)
+    return cv
+
+def sipmsg(sipreq):
+    m = re.search('(^(?=[A-Z]+\s(sip|tel):)|(?<=^SIP/2\.0\s))\S{3}', sipreq) 
+    return 'NaN' if m == None else m[0]      
+
+def deseg(recs,rno,va,bs):
+    fst,lst,apl = recs.loc[rno,'apmsg'], recs.loc[rno,'last'], recs.loc[rno,'appl']
+    sid0 = '%s%s%s%s' % (recs.loc[rno,'ip_s'], recs.loc[rno,'port_s'], recs.loc[rno,'ip_d'], recs.loc[rno,'port_d'])
+    if fst != 'NaN' and lst == '8': 
+        va.append([recs.loc[rno,'pidxx'],recs.loc[rno,'apd']])
+        return apl
+    mss, flen, rl = '', 0, len(recs)
+    seg0 = recs.loc[rno,'segid']
+    if fst == 'NaN': 
+        for i in range(1,20): 
+            rn = rno + i
+            if rn >= rl: break
+            if recs.loc[rn,'ts_dt'][-5:] != recs.loc[rno,'ts_dt'][-5:]: break
+            sid = '%s%s%s%s' % (recs.loc[rn,'ip_s'], recs.loc[rn,'port_s'], recs.loc[rn,'ip_d'], recs.loc[rn,'port_d'])
+            seg = recs.loc[rn,'segid']
+            if sid+seg[:4] == sid0+seg0[:4]: 
+                if recs.loc[rn,'apmsg'] != 'NaN': 
+                    mss, flen = recs.loc[rn,'appl'], int(seg)
+                    break
+    else: mss, flen = apl, int(seg0)
+    if mss == '': return ''
+    if lst == '8' and fst == 'NaN': 
+        if apl == mss: lst = '0'
+    tlen,clen = 0,0
+    frl = {seg0:[recs.loc[rno,'pidxx'],recs.loc[rno,'apd']]}
+    appl = int(apl)
+    if lst == '0': clen = appl 
+    else: tlen = int(seg0)
+    for i in range(1,20): 
+        rn = rno + i
+        if rn >= rl: break
+        if recs.loc[rn,'ts_dt'][-5:] != recs.loc[rno,'ts_dt'][-5:]: break
+        sid = '%s%s%s%s' % (recs.loc[rn,'ip_s'], recs.loc[rn,'port_s'], recs.loc[rn,'ip_d'], recs.loc[rn,'port_d'])
+        seg = recs.loc[rn,'segid']
+        if sid+seg[:4] == sid0+seg0[:4]: 
+            fst,lst,apl = recs.loc[rn,'apmsg'], recs.loc[rn,'last'], recs.loc[rn,'appl']
+            if fst != 'NaN' and int(seg) > flen: break 
+            appl += int(apl)
+            if fst == 'NaN' and lst == '8':
+                if apl == mss: lst = '0'
+            if lst == '0': clen += appl
+            else: tlen = int(seg)
+            frl.update({seg:[recs.loc[rn,'pidxx'], recs.loc[rn,'apd']]})
+            G_DUPL[G_QNO[0]] = seg
+            G_QNO[0] = 0 if G_QNO[0] == bs else G_QNO[0] + 1 
+            if flen + clen == tlen: break
+    frs = dict(sorted(frl.items()))
+    pid, ipd = '', ''
+    for k,v in frs.items():
+        pid += '&%s' % v[0]
+        ipd += v[1]
+    va.append([pid[1:],ipd])
+    return str(appl)
+
+def deseg_s(recs,rno,va,bs):
+    fst,lst,apl = recs.loc[rno,'apmsg'], recs.loc[rno,'last'], recs.loc[rno,'appl']
+    sid0 = '%s%s%s%s' % (recs.loc[rno,'ip_s'], recs.loc[rno,'port_s'], recs.loc[rno,'ip_d'], recs.loc[rno,'port_d'])
+    if fst != 'NaN' and lst == '1': 
+        va.append([recs.loc[rno,'pidxx'],recs.loc[rno,'apd']])
+        return apl
+    rl = len(recs)
+    seg0 = recs.loc[rno,'segid']
+    frl = {seg0:[recs.loc[rno,'pidxx'],recs.loc[rno,'apd']]}
+    appl = int(apl)
+    flen = 0 if fst == 'NaN' else int(seg0)
+    tlen = 0 if lst == '0' else int(seg0)
+    for i in range(1,20): 
+        rn = rno + i
+        if rn >= rl: break
+        tid = int(recs.loc[rn,'segid'])
+        if abs(tid - int(seg0)) < 10: 
+            if recs.loc[rn,'last'] == '1' and tlen == 0: tlen = tid
+            elif recs.loc[rn,'apmsg'] != 'NaN' and flen == 0: flen = tid
+            if flen > 0 and tlen > 0: break
+    if tlen == 0 or flen == 0: return ''     
+    j = 0
+    for i in range(1,20): 
+        rn = rno + i
+        if rn >= rl: break
+        if recs.loc[rn,'ts_dt'][-5:] != recs.loc[rno,'ts_dt'][-5:]: break
+        sid = '%s%s%s%s' % (recs.loc[rn,'ip_s'], recs.loc[rn,'port_s'], recs.loc[rn,'ip_d'], recs.loc[rn,'port_d'])
+        seg = recs.loc[rn,'segid']
+        if flen <= int(seg) <= tlen and sid == sid0: 
+            appl += int(recs.loc[rn,'appl'])
+            j += 1
+            frl.update({seg:[recs.loc[rn,'pidxx'], recs.loc[rn,'apd']]})
+            G_DUPL[G_QNO[0]] = seg
+            G_QNO[0] = 0 if G_QNO[0] == bs else G_QNO[0] + 1 
+            if flen + j == tlen: break
+    frs = dict(sorted(frl.items()))
+    pid, ipd = '', ''
+    for k,v in frs.items():
+        pid += '&%s' % v[0]
+        ipd += v[1]
+    va.append([pid[1:],ipd])
+    return str(appl)
+    
+       
 def siphdr(sipmsg,sepr,eepr):
     hdr = ''
     m = re.search(sepr, sipmsg)
@@ -113,9 +455,9 @@ def siphdr(sipmsg,sepr,eepr):
         fs = m.end()
         m = re.search(eepr, sipmsg[fs:])
         fe = fs + 10 if m == None else fs + m.start()
-        val = sipmsg[fs:fe].strip()
-        hdr = val.decode()
+        hdr = sipmsg[fs:fe]
     return hdr
+    
     
 def dumm(ep):
     return ep
@@ -250,6 +592,11 @@ def q_basic(stbl, flds=['*'], cond=''):
         cols = ','.join(cn for cn in flds)
     if cond != '': cond = ' WHERE %s' % cond 
     sqlq = "SELECT %s FROM %s%s" % (cols, stbl, cond)
+    return sqlq
+    
+def q_grpby(stbl, gby, fn, cond=''):
+    if cond != '': cond = ' WHERE %s' % cond 
+    sqlq = "SELECT %s, %s FROM %s%s Group BY %s" % (gby, fn, stbl, cond, gby)
     return sqlq
 
 def q_delete(stbl, cond='gtag is null'):
@@ -397,4 +744,63 @@ def q_comps(stbl,ck,cd,rtag,ctags):
     
     return sqlq
     
+def q_subana(stb1,atyp,maxd=8,flds=['*'], gtag=''):
+    stb2 = 'mss_attr_val'
+    stb3 = 'mss_attr_st'
+    atp = 'aif' if atyp in ['MTC', 'MOC'] else atyp 
+    rtbl = 'mss_ares_%s' % atp
+    c1 = '"SUB" and atyp = "%s" and %s' % (atyp,gtag)
+    c2 = 't1.atyp = "%s" and t1.%s' % (atyp,gtag)
+    c3 = '"FIN" and atyp = "%s" and %s' % (atyp,gtag)
+    v2 = 'select subname, attr, "*DEF" val, dres ana from %(stb1)s where dtyp = %(c1)s\n\
+union select subname, attr, "*UNK" val, ures ana from %(stb1)s where utyp = %(c1)s\n\
+union (select t1.subname, t2.attr, t1.aval val, t1.res ana from %(stb2)s t1\n\
+join %(stb1)s t2 on t1.gtag = t2.gtag and t1.atyp = t2.atyp and t1.subname = t2.subname\n\
+where t1.rtyp = "SUB" and %(c2)s)' % {"c1":c1, "c2":c2, "stb1":stb1,"stb2":stb2} 
+    v1 = 'select concat(if(t1.epcn="","",concat(t1.epcn,"-")),t1.subname) ana1, v1.attr attr1, v1.val val1, v1.ana ana2 from %(stb3)s t1\n\
+join (%(v2)s) v1 on t1.subname = v1.subname where %(c2)s' % {"c2":c2, "stb3":stb3, "v2":v2}
+    v3 = 'select subname, attr, "*DEF" val, dres res from %(stb1)s where dtyp = %(c3)s\n\
+union select subname, attr, "*UNK" val, ures res from %(stb1)s where utyp = %(c3)s\n\
+union (select t1.subname, t2.attr, t1.aval val, t1.res res from %(stb2)s t1\n\
+join %(stb1)s t2 on t1.gtag = t2.gtag and t1.atyp = t2.atyp and t1.subname = t2.subname\n\
+where t1.rtyp = "FIN" and %(c2)s)' % {"c3":c3, "c2":c2, "stb1":stb1,"stb2":stb2}
+    v4 = 'select * from %s where %s' % (rtbl, gtag) 
+    with connections['xnaxdr'].cursor() as cursor:
+        cursor.execute("SHOW COLUMNS FROM %s" % rtbl)
+        cols = ','.join('v2.%s' % cn[0] for cn in cursor if cn[0] not in ['gtag','resn','rtyp'])
+    
+    sql1 = v1
+    d = 2
+    while d < maxd:
+        sql1 = 'SELECT v1.*, v2.attr attr%(n)s, v2.val val%(n)s, v2.ana ana%(m)s FROM (%(q)s) v1\n\
+join (%(v2)s) v2 on v1.ana%(n)s = v2.subname' % {"n":d, "m":d+1, "q":sql1, "v2":v2}
+        df = pd.read_sql_query(sql1, connections['xnaxdr'])
+        if df.empty: break
+        d += 1
+    
+    ec = ''.join(',""' for i in range(0,(d-1)*3))
+    ob = ','.join('ana%s,val%s' % (i,i) for i in range(1,d+1))
+    
+    s1 = 'select concat(if(t1.epcn="","",concat(t1.epcn,"-")),t1.subname) ana1,\
+v1.attr attr1, v1.val val1 %(ec)s, v1.res from %(stb3)s t1\n\
+join (%(v3)s) v1 on t1.subname = v1.subname where %(c2)s' % {"ec":ec, "c2":c2, "stb3":stb3, "v3":v3}
+    
+    s2 = 'select v1.*, v2.attr attr2, v2.val val2 %(ec)s, v2.res from (%(v1)s) v1\n\
+join (%(v3)s) v2 on v1.ana2 = v2.subname' % {"ec":ec[:-9],"v1":v1, "v3":v3}    
+        
+    sqlq = s2 + '\nUNION ' + s1
+    sql1 = v1
+    n = 2
+    while n < d:
+        sql1 = 'SELECT v1.*, v2.attr attr%(n)s, v2.val val%(n)s, v2.ana ana%(m)s FROM (%(q)s) v1\n\
+join (%(v2)s) v2 on v1.ana%(n)s = v2.subname' % {"n":n, "m":n+1, "q":sql1, "v2":v2}
+        s3 = 'select v1.*, v2.attr attr%(m)s, v2.val val%(m)s %(ec)s, v2.res from (%(q)s) v1\n\
+join (%(v3)s) v2 on v1.ana%(m)s = v2.subname' % {"ec":ec[:-n*9],"m":n+1, "q":sql1, "v3":v3}
+        sqlq = s3 + '\nUNION ' + sqlq
+        n += 1
+    
+    sqlq = 'select v1.*, %s from (%s) v1 join (%s) v2 on v1.res = v2.resn' % (cols,sqlq,v4) 
+    sqlq += '\nORDER BY %s' % ob  
+    
+    return sqlq
     

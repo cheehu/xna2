@@ -43,7 +43,6 @@ def nomaInfo(nomagrp, id, nomaset):
     if sdir.suffix == '.zip': sdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
     log_content = "NOMA Group:%s gtag:%s\n From Source DIR: %s\n\n" % (grp.name, grp.gtag, sdir)
     grpsets = grp.sets.all()
-    sfiles = []
     for grpset in grpsets:
         set = nomaset.objects.get(name=grpset.set)
         log_content = log_content + "Execute NOMA Set: " + set.name + "\n"
@@ -51,12 +50,8 @@ def nomaInfo(nomagrp, id, nomaset):
         log_content = log_content + "   Target Table: " + grpset.ttbl + "\n"
         sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
         log_content = '%s   Source Files: %s\n' % (log_content, sfile)
-        if set.type == 'p2':
-            df = pd.read_sql_query(grpset.sfile, connections['xnaxdr'])
-            dfgf = df.groupby('pfile')
-            for name in dfgf: sfiles.append(name.strip())
-        elif set.type == 'sq': 
-            if sfile.name in get_qtbs(): sfiles.append(sfile)
+        if set.type == 'sq': 
+            if sfile.name in get_qtbs(): sfiles = [sfile]
         else: sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles:
             for sfile in sfiles:
@@ -79,12 +74,8 @@ def nomaCount(nomagrp, id, nomaset):
     for grpset in grpsets:
         set = nomaset.objects.get(name=grpset.set)
         sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
-        if set.type == 'p2':
-            df = pd.read_sql_query(grpset.sfile, connections['xnaxdr'])
-            dfgf = df.groupby('pfile')
-            for name in dfgf: sfiles.append(name.strip())
-        elif set.type == 'sq': 
-            if sfile.name in get_qtbs(): sfiles.append(sfile)
+        if set.type == 'sq': 
+            if sfile.name in get_qtbs(): sfiles = [sfile]
         else: sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles: task_count += len(sfiles)
     return task_count
@@ -188,27 +179,24 @@ def getBRecords(s, sa):
         cp += plen
     return rec
 
-def getBFields(records, acts, outf, sfa, dfsf, smap):
-    dupl, qno, ed = [None]*20, [0], sfa[3]
+def getBFields(records, acts, vs, outf, sfa, smap):
+    ed, sf = sfa[3], sfa[0]
     for rno, rec in enumerate(records):
         radd = True
         varr = [[] for y in range(10)]
-        vals = []
+        vals = list(vs)
         skipf, skipb = 0, 0
         for idx, act in enumerate(acts):
             if skipf > 0: 
                 skipf -= 1
                 continue
             tfun = 'bv.hex()' if act.tfunc == None else 'noma.tfunc.%s(%s)' % (act.tfunc, act.nepr)
-            if act.eepr == None:
-                if act.spos != None:
-                    sp, ep = act.spos+skipb, act.epos+skipb
-                    bv = rec[sp:ep]
-                val = eval(tfun)
-            else: val = str(dfsf.loc[dfsf.index[rno],act.eepr]).strip()
+            sp = None if act.spos == None else act.spos+skipb
+            ep = None if act.epos == None else act.epos+skipb
+            bv = rec[sp:ep]
+            val = eval(tfun)
             if act.varr != None: varr[act.varr].append(val)
-            if act.skipb > 99: skipb += val
-            elif act.skipb > 0: skipb += act.skipb 
+            skipb = skipb + val if act.skipb < 0 else skipb + act.skipb 
             if act.skipf > 0:
                 if act.sepr == None: skipf = act.skipf
                 else: 
@@ -219,21 +207,6 @@ def getBFields(records, acts, outf, sfa, dfsf, smap):
                 if not radd: break
         if radd: outf.write('%s\n' % '\t'.join(va for va in vals))
  
-def getPRecords(dfsf,sfa):
-    with open(sfa[0], 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
-        reso = getBRecords(s, sfa)
-        res = []
-        for row,data in dfsf.iterrows():
-            pkts = data['pidx'].split('-')
-            p0 = pkts[0].split(',')
-            resq = reso[int(p0[0])]
-            if len(pkts) > 1:
-                for p in pkts[1:]:
-                    pt = p.split(',')
-                    resq += reso[int(pt[0])][int(pt[1]):]
-            res.append(resq)
-    return res
-
 def getQRecords(sf, gtag):
     cond = '' if gtag == None else ' WHERE gtag="%s"' % gtag 
     sqlq = "SELECT * FROM %s%s" % (sf, cond)         
@@ -271,7 +244,7 @@ def getERecords(xl,sepr,eepr):
     return df
 
 def getEFields(df, acts, vs, outf, smap):
-    for row,rec in df.iterrows():
+    for rno,rec in df.iterrows():
         radd, skipf = True, 0
         varr = [[] for y in range(10)]
         vals = list(vs)
@@ -298,7 +271,7 @@ def getEFields(df, acts, vs, outf, smap):
         if radd: outf.write('%s\n' % '\t'.join(va for va in vals))
 
     
-def nomaMain(sf, tf, set, acts, smap, dfsf, gtag, xlobj):
+def nomaMain(sf, tf, set, acts, smap, gtag, xlobj):
     if set.type == 'tx':
         with open(sf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
             res = getRecords(s, set.sepr, set.eepr)
@@ -321,22 +294,20 @@ def nomaMain(sf, tf, set, acts, smap, dfsf, gtag, xlobj):
                 getJFields(res, acts, [], fw)
             res = "Successfully Executed " + set.name
     elif set.type == 'bi':
-        sfa = ['',0,0,'']
-        sfa[0] = '/'.join(fn for fn in sf.split('\\'))
+        sfa = ['',0,0,'','']
+        sfa[0] = '%s' % ('/'.join(fn for fn in str(sf).split('\\')))
         sfa[1] = set.sepr
-        sfa[2] = os.path.getsize(sf)
+        sfa[2] = sf.stat().st_size
         with open(sf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
             mg = s.read(1)
             sfa[3] = 'little' if mg[0] == 212 else 'big'
             res = getBRecords(s, sfa)
+        sfa[4] = '%s,%s,%s,%s' % (sfa[0],sfa[1],sfa[2],sfa[3]) 
+        noma.tfunc.G_DUPL = [None]*20
+        noma.tfunc.G_QNO = [0]
         with open(tf, 'w') as fw:
-            getBFields(res, acts, fw, sfa, dfsf, smap)
-        res = "Successfully Executed " + set.name
-    elif set.type == 'p2':
-        sfa = sf.split(',')
-        res = getPRecords(dfsf,sfa)
-        with open(tf, 'w') as fw:
-            getBFields(res, acts, fw, sfa, dfsf, smap)
+            iniv = [] if gtag == None else [gtag]
+            getBFields(res, acts, iniv, fw, sfa, smap)
         res = "Successfully Executed " + set.name
     elif set.type == 'xl':
         sepr, eepr = eval('list(%s)' % set.sepr), eval('list(%s)' % set.eepr)
@@ -353,6 +324,8 @@ def nomaMain(sf, tf, set, acts, smap, dfsf, gtag, xlobj):
         if isinstance(df, str):
             res = df
         else:
+            noma.tfunc.G_DUPL = [None]*20
+            noma.tfunc.G_QNO = [0]
             with open(tf, 'w') as fw:
                 iniv = [] if gtag == None else [gtag]
                 getEFields(df, acts, iniv, fw, smap)
@@ -419,21 +392,14 @@ def nomaRetrace(df, ld):
 
 
 
-def nomaExecT(sf,strm, cstyp):
-    dfsf, sfiles = [], []
-    if cstyp == 'p2':
-        df = pd.read_sql_query(sf, connections['xnaxdr'])
-        dfgf = df.groupby('pfile')
-        for name,group in dfgf: sfiles.append(name.strip())
-        sf = sfiles[0]
-        dfsf = dfgf.get_group(sfiles[0])
+def nomaExecT(strm):
     dfsm = pd.DataFrame.from_records(strm)
     sm = dfsm.groupby('ctag_id')
     smap = {}
     for name,group in sm:
         smap[name] = {}
         for row,data in group.iterrows(): smap[name].update({data['ostr'] : data['cstr']})
-    return smap, dfsf                
+    return smap                
 
 '''
 def nomaLoad(tf, tb, hd):

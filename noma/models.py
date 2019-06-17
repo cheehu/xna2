@@ -24,8 +24,7 @@ class NomaSet(models.Model):
     stypes = (
         ('tx', 'Text/XML'),
         ('js', 'JSON'),
-        ('bi', 'Binary'),
-        ('p2', 'PCAP2pass'),
+        ('bi', 'PCAP'),
         ('xl', 'Excel'),
         ('sq', 'Table/View'),
     )

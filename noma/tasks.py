@@ -31,29 +31,23 @@ def nomaExec(id, total_count):
         f.write("   Target Table: %s\n" % grpset.ttbl)
         f.write("   NOMA Actions Sequences:\n")
         hdrs = [] if grp.gtag == None else ['gtag']
-        sfiles = []
         acts = set.acts.all()
         for act in acts:
-            if act.fname != None and act.fname not in hdrs: hdrs.append(act.fname)
+            if act.fname != None and act.fname[0] != '_' and act.fname not in hdrs: hdrs.append(act.fname)
             f.write("       %s  -  %s  -  %s   -  %s\n" % (act.seq, act.fname, act.sepr, act.eepr))
         f.write("\n")
         sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
         tfile = ldir / (set.name + '.tsv')
         f.write("   Source Files: %s\n" % sfile)
-        if set.type == 'p2':
-            df = pd.read_sql_query(grpset.sfile, connections['xnaxdr'])
-            dfgf = df.groupby('pfile')
-            for name in dfgf: sfiles.append(name.strip())
-        elif set.type == 'sq': 
-            if sfile.name in get_qtbs(): sfiles.append(sfile)
+        if set.type == 'sq': 
+            if sfile.name in get_qtbs(): sfiles = [sfile]
         else: sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles:
             for sfile in sfiles:
-                dfsf = dfgf.get_group(sfile) if set.type == 'p2' else ''
                 if set.type == 'xl' and sfile != pfile: xlobj = pd.ExcelFile(sfile)
                 f.write("       %s\n" % sfile.name)
                 i = i + 1
-                msg = nomaMain(sfile, tfile, set, acts, smap, dfsf, grp.gtag, xlobj)
+                msg = nomaMain(sfile, tfile, set, acts, smap, grp.gtag, xlobj)
                 pfile = sfile
                 f.write("%s\n" % msg)
                 f.flush()
@@ -62,7 +56,7 @@ def nomaExec(id, total_count):
                     if grpset.ttbl == '-----': continue
                     hdr = ','.join(hd for hd in hdrs)
                     tf = "'%s'" % ('/'.join(fn for fn in str(tfile).split('\\')))
-                    sqlq = "LOAD DATA LOCAL INFILE %s INTO TABLE %s FIELDS TERMINATED BY '\t' (%s)" % (tf, grpset.ttbl, hdr)
+                    sqlq = "LOAD DATA LOCAL INFILE %s INTO TABLE %s FIELDS TERMINATED BY '\t' ESCAPED BY '\b' (%s)" % (tf, grpset.ttbl, hdr)
                     with connections['xnaxdr'].cursor() as cursor:
                         try:
                             cursor.execute(sqlq)
