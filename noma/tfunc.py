@@ -748,7 +748,7 @@ def q_subana(stb1,atyp,maxd=8,flds=['*'], gtag=''):
     stb2 = 'mss_attr_val'
     stb3 = 'mss_attr_st'
     atp = 'aif' if atyp in ['MTC', 'MOC'] else atyp 
-    rtbl = 'mss_ares_%s' % atp
+    rtbl = 'mss_ares_%s' % atp.lower()
     c1 = '"SUB" and atyp = "%s" and %s' % (atyp,gtag)
     c2 = 't1.atyp = "%s" and t1.%s' % (atyp,gtag)
     c3 = '"FIN" and atyp = "%s" and %s' % (atyp,gtag)
