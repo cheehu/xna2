@@ -1,17 +1,27 @@
 from __future__ import absolute_import, unicode_literals
 from celery import shared_task, current_task
 import os, pathlib, traceback
-from .models import NomaGrp, NomaSet, queGrp, queSet, NomaStrMap
-from .utils import nomaMain, nomaRetrace, get_qtbs, BDIR, ODIR
+from .models import NomaGrp, NomaSet, NomaGrpSet, queGrp, queSet, NomaStrMap, NomaSetAct
+from .utils import nomaMain, nomaRetrace, get_qtbs
 from django.db import connection, connections
-import pandas as pd
+import re, pandas as pd
+import xml.etree.ElementTree as ET
 import noma.tfunc
+from .forms import XDBX, BDIR, ODIR
 
 @shared_task
 def nomaExec(id, total_count):
+    if total_count == 0: return {'current': total_count, 'total': total_count, 'percent': 100, 'status': 'ok'}
     grp = NomaGrp.objects.get(pk=int(id))
     sdir = BDIR / grp.sdir
     if sdir.suffix == '.zip': sdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
+    gsets = grp.sets.all()
+    if grp.name == 'noma_excel':
+        sfile = sdir / grp.sfile
+        sd = pd.read_excel(sfile, sheet_name=None)
+        sd.pop('Index',None)
+        esets = [NomaSet(name=k, type='xl', sepr=[k,0,0,None], eepr=[None,None], depr=None,xtag=None) for k in sd]
+        gsets = [NomaGrpSet(grp=grp, seq=i, set=esets[i], sfile=k, ttbl=k) for i, k in enumerate(sd)]
     ldir = ODIR / grp.ldir
     noma.tfunc.G_SDICT.clear()
     noma.tfunc.G_SDICT.update({'ldir':ldir})
@@ -24,14 +34,15 @@ def nomaExec(id, total_count):
         smap[name] = {}
         for row,data in group.iterrows(): smap[name].update({data['ostr'] : data['cstr']})
     i, xlobj, pfile = 0, None, ''
-    for grpset in grp.sets.all():
-        set = NomaSet.objects.get(name=grpset.set)
+    for grpset in gsets:
+        set = NomaSet.objects.get(name=grpset.set) if grp.name != 'noma_excel' else esets[grpset.seq]
         f.write("\nExecuting NOMA Set: %s\n" % set.name)
         f.write("   Set Type: %s\n" % set.type)
         f.write("   Target Table: %s\n" % grpset.ttbl)
         f.write("   NOMA Actions Sequences:\n")
         hdrs = [] if grp.gtag == None else ['gtag']
-        acts = set.acts.all()
+        if grp.name != 'noma_excel': acts = set.acts.all()
+        else: acts = [(NomaSetAct(set=grpset.set,seq=cn,sepr=cv,fname=cv)) for cn, cv in enumerate(sd[grpset.sfile].columns.values)]
         for act in acts:
             if act.fname != None and act.fname[0] != '_' and act.fname not in hdrs: hdrs.append(act.fname)
             f.write("       %s  -  %s  -  %s   -  %s\n" % (act.seq, act.fname, act.sepr, act.eepr))
@@ -57,7 +68,7 @@ def nomaExec(id, total_count):
                     hdr = ','.join(hd for hd in hdrs)
                     tf = "'%s'" % ('/'.join(fn for fn in str(tfile).split('\\')))
                     sqlq = "LOAD DATA LOCAL INFILE %s INTO TABLE %s FIELDS TERMINATED BY '\t' ESCAPED BY '\b' (%s)" % (tf, grpset.ttbl, hdr)
-                    with connections['xnaxdr'].cursor() as cursor:
+                    with connections[XDBX].cursor() as cursor:
                         try:
                             cursor.execute(sqlq)
                             f.write("Succesfully Loaded:\n  %s\n\n" % sqlq)
@@ -95,6 +106,7 @@ def nomaQExe(id, total_count):
     f=open(ldir / (grp.name + '.log'), "w+")
     f.write("Executing Que Group: %s Output to DIR: %s\n\n" % (grp, ldir))
     i, j = 0, 0
+    doc = ET.Element('config')
     for grpset in grp.sets.all():
         j += 1
         set = queSet.objects.get(name=grpset.set)
@@ -115,9 +127,17 @@ def nomaQExe(id, total_count):
             try:
                 sqlq = eval(qfun) 
                 if str(sq.qfunc) == 'q_delete':
-                    with connections['xnaxdr'].cursor() as cursor:
+                    with connections[XDBX].cursor() as cursor:
                         cursor.execute(sqlq)
-                else: excelout(sqlq,writer,workbook,sq.name,ldir)
+                else: 
+                    df = pd.read_sql_query(sqlq, connections[XDBX])
+                    excelout(df,writer,workbook,sq.name,ldir)
+                    if str(sq.qfunc) == 'q_basic':
+                        cd = re.search('gtag="(.+?)"',sqlq)
+                        if cd != None:
+                            xtbl = out_xml(sq.stbl,df,cd[0])
+                            if xtbl != None: doc.append(xtbl)
+                    
                 f.write("       Succesfully Executed:\n\n")
                 current_task.update_state(state='PROGRESS',
                                           meta={'current': i, 'total': total_count, 'status': 'ok',
@@ -132,17 +152,51 @@ def nomaQExe(id, total_count):
         f.write("\n")
     writer.save()
     f.close()
+    if len(doc) > 0: 
+        xt = ET.ElementTree(doc)
+        with open('%s.xml' % tfile, 'w+b') as xf: 
+            xt.write(xf) 
+        
     return {'current': total_count, 'total': total_count, 'percent': 100, 'status': 'ok',}
 
+def out_xml(stbl, df, cd, sub=None):
+    try: set = NomaSet.objects.get(name=stbl)
+    except NomaSet.DoesNotExist: return None
+    if set.xtag == None: return None
+    ttag = set.xtag.split(',')
+    if ttag[0] == 's' and sub == None: return None
+    acts = set.acts.filter(xtag__isnull=False)
+    if len(acts) == 0: return None
+    tbl = ET.Element(ttag[1])
+    t = tbl
+    for tag in ttag[2:-1]: t = ET.SubElement(t, tag)
+    for rno,rec in df.iterrows():
+        r = ET.SubElement(t, ttag[-1])
+        for act in acts:
+            rtag = act.xtag.split(',')
+            if rtag[0] == 'v':
+                if rec[act.fname] == '': continue
+                f = r.find(rtag[1])
+                if f == None: f = ET.SubElement(r,rtag[1])
+                if len(rtag) > 2:
+                    for k in rtag[2:]:
+                        c = f.find(k)
+                        f = ET.SubElement(f, k) if c == None else c
+                f.text = rec[act.fname]
+            else:
+                c1 = cd + ''.join(' and %s="%s"' % (k,rec[k]) for k in rtag[2:])
+                sqlq = noma.tfunc.q_basic(rtag[1],['*','gtag'],c1)
+                df1 = pd.read_sql_query(sqlq, connections[XDBX])
+                if not df1.empty: r.append(out_xml(rtag[1],df1,c1,''))
+    return tbl
     
-def excelout(sqlq,writer,workbook,sqn,ldir):
+def excelout(df,writer,workbook,sqn,ldir):
     format_col = workbook.add_format({'align':'left','font_size':9})
     format_hdr = workbook.add_format({'bold': True, 'fg_color': '#D7E4BC'})
     format_add = workbook.add_format({'bold': True, 'bg_color': '#FFFF00'})
     format_del = workbook.add_format({'bold': True, 'bg_color': '#FF0000'})
     format_mod = workbook.add_format({'bold': True, 'bg_color': '#FF00FF'})
     format_ref = workbook.add_format({'bold': True, 'bg_color': '#CCFFFF'})
-    df = pd.read_sql_query(sqlq, connections['xnaxdr'])
     df.to_excel(writer, sheet_name=sqn, index=False, startrow=1, header=False)
     worksheet = writer.sheets[sqn]
     worksheet.conditional_format(1,0,len(df.index),len(df.columns)-1,{'type':'text','criteria':'containing','value':':##','format':format_add})
@@ -159,4 +213,7 @@ def excelout(sqlq,writer,workbook,sqn,ldir):
         clen = max(df[col].astype(str).map(len).max(), len(str(df[col].name))+1) + 1
         worksheet.set_column(c, c, clen)
     if 'pidxx' in df.columns.values: nomaRetrace(df, '%s%s' % (ldir, sqn))
-    return True        
+        
+    return True
+
+    

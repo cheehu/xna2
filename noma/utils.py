@@ -1,31 +1,18 @@
 import os, pathlib, zipfile, pandas as pd
-from django.conf import settings
 from django.db import connection, connections
 import re, mmap, json, codecs, traceback
 import noma.tfunc
+from .models import NomaGrp, NomaSet, NomaGrpSet, NomaSetAct
+from .forms import XDBX, BDIR, ODIR
+#from .middleware import get_current_usrgrp, get_current_ndb
 
-BDIR = pathlib.Path(settings.GRP_DIR)
-ODIR = pathlib.Path(settings.LOG_DIR)
-
-def get_dbtbs(ptt):
-    with connections['xnaxdr'].cursor() as cursor:
-        cursor.execute('SHOW TABLES')
-    tbls = [(tb[0],tb[0]) for tb in cursor if re.search(ptt,tb[0])]
-    tbls.append(('-----','-----'))
-    return tuple(tbls)
 
 def get_qtbs(ptt=''):
-    with connections['xnaxdr'].cursor() as cursor:
+    with connections[XDBX].cursor() as cursor:
         cursor.execute('SHOW TABLES')
     if ptt == '': tbls = [tb[0] for tb in cursor]
     else: tbls = [tb[0] for tb in cursor if re.search(ptt,tb[0])]
     return tbls
-
-def get_dirs(spath,fx):
-    sdir = pathlib.Path(spath)
-    p = sdir.glob('**/*')
-    dirs = [(x.relative_to(sdir),x.relative_to(sdir)) for x in p if x.is_dir() or x.suffix.lower() == fx]
-    return tuple(dirs)
 
 def dirzip(spath):
     sdir = BDIR / spath
@@ -41,17 +28,25 @@ def nomaInfo(nomagrp, id, nomaset):
     grp = nomagrp.objects.get(pk=int(id))
     sdir = BDIR / grp.sdir
     if sdir.suffix == '.zip': sdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
-    log_content = "NOMA Group:%s gtag:%s\n From Source DIR: %s\n\n" % (grp.name, grp.gtag, sdir)
     grpsets = grp.sets.all()
+    if grp.name == 'noma_excel':
+        sfile = sdir / grp.sfile
+        if list(sdir.glob(grp.sfile)):
+            sd = pd.read_excel(sfile, sheet_name=None)
+            sd.pop('Index',None)
+            esets = [NomaSet(name=k, type='xl', sepr=[k,0,0,None], eepr=[None,None], depr=None,xtag=None) for k in sd]
+            grpsets = [NomaGrpSet(grp=grp, seq=i, set=esets[i], sfile=k, ttbl=k) for i, k in enumerate(sd)]
+        else: return 'No file matching %s \n' % sfile
+    log_content = "NOMA Group:%s gtag:%s\n From Source DIR: %s\n\n" % (grp.name, grp.gtag, sdir)
     for grpset in grpsets:
-        set = nomaset.objects.get(name=grpset.set)
+        set = nomaset.objects.get(name=grpset.set) if grp.name != 'noma_excel' else esets[grpset.seq]
         log_content = log_content + "Execute NOMA Set: " + set.name + "\n"
         log_content = log_content + "   Set Type : " + set.type + "\n"
         log_content = log_content + "   Target Table: " + grpset.ttbl + "\n"
         sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
         log_content = '%s   Source Files: %s\n' % (log_content, sfile)
         if set.type == 'sq': 
-            if sfile.name in get_qtbs(): sfiles = [sfile]
+            sfiles = [sfile] if sfile.name in get_qtbs() else []
         else: sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles:
             for sfile in sfiles:
@@ -60,7 +55,9 @@ def nomaInfo(nomagrp, id, nomaset):
             #log_content = log_content + "       No file matching " + grpset.sfile + "\n"
             log_content = '%s       No file matching %s \n' % (log_content, grpset.sfile if grp.sfile == None else grp.sfile)
         log_content = log_content + "   NOMA Actions Sequences:\n"
-        for act in set.acts.all():
+        if grp.name != 'noma_excel': acts = set.acts.all()
+        else: acts = [(NomaSetAct(set=grpset.set,seq=cn,sepr=cv,fname=cv)) for cn, cv in enumerate(sd[grpset.sfile].columns.values)]
+        for act in acts:
             log_content = log_content + "       " + str(act.seq)  + " - " +  str(act.fname) + "\n"
         log_content = log_content + "\n"
     return log_content
@@ -69,13 +66,20 @@ def nomaCount(nomagrp, id, nomaset):
     grp = nomagrp.objects.get(pk=int(id))
     sdir = dirzip(grp.sdir)
     grpsets = grp.sets.all()
+    if grp.name == 'noma_excel':
+        sfile = sdir / grp.sfile
+        if list(sdir.glob(grp.sfile)):
+            sd = pd.read_excel(sfile, sheet_name=None)
+            sd.pop('Index',None)
+            esets = [NomaSet(name=k, type='xl', sepr=[k,0,0,None], eepr=[None,None], depr=None,xtag=None) for k in sd]
+            grpsets = [NomaGrpSet(grp=grp, seq=i, set=esets[i], sfile=k, ttbl=k) for i, k in enumerate(sd)]
+        else: return 0
     task_count = 0
-    sfiles = []
     for grpset in grpsets:
-        set = nomaset.objects.get(name=grpset.set)
+        set = nomaset.objects.get(name=grpset.set) if grp.name != 'noma_excel' else esets[grpset.seq]
         sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
         if set.type == 'sq': 
-            if sfile.name in get_qtbs(): sfiles = [sfile]
+            sfiles = [sfile] if sfile.name in get_qtbs() else []
         else: sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles: task_count += len(sfiles)
     return task_count
@@ -94,12 +98,14 @@ def getRecords(s, srt_txt, end_txt):
         
 def getFields(po, sep, acts, vs, outf, smap):
     records = re.split(sep, po)
+    rno = 0
     for rec in records:
         radd, skipf = True, 0
         varr = [[] for y in range(10)]
         vals = list(vs)
         rec.strip()
         for idx, act in enumerate(acts):
+            if act.seq > 99: continue
             if skipf > 0: 
                 skipf -= 1
                 continue
@@ -111,7 +117,7 @@ def getFields(po, sep, acts, vs, outf, smap):
                 fs = None if m == None else fs + m.end()
                 if fs != None and fe != None: fe += m.end()
             if fs != None and act.eepr != None and m_s == 0:
-                m = re.search(act.eepr, rec[fs:])
+                m = re.search(act.eepr, rec[fs:]) 
                 if m != None: fe = fs + m.start()
             val = '' if fs == None else rec[fs:fe].strip() if m_s == 0 else rec[:m_s][fs:fe].strip()
             if act.tfunc != None:
@@ -131,6 +137,7 @@ def getFields(po, sep, acts, vs, outf, smap):
                 if act.varr != None: val = varr[act.varr][0]
                 getFields(val,nepr,acts[idx+1:],vals,outf,smap)
                 break
+        rno += 1
         if radd and nepr == None:
             outf.write('%s\n' % '\t'.join(va for va in vals))
 
@@ -211,7 +218,7 @@ def getQRecords(sf, gtag):
     cond = '' if gtag == None else ' WHERE gtag="%s"' % gtag 
     sqlq = "SELECT * FROM %s%s" % (sf, cond)         
     try:
-        df = pd.read_sql_query(sqlq, connections['xnaxdr'])
+        df = pd.read_sql_query(sqlq, connections[XDBX])
     except Exception as e:
         info = '"%s"' % e
         #info = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
@@ -252,23 +259,32 @@ def getEFields(df, acts, vs, outf, smap):
             if skipf > 0: 
                 skipf -= 1
                 continue
+            nepr = act.nepr if act.tfunc == None else None
             se = int(act.sepr) if act.sepr.isdigit() else act.sepr
             fs, fe = act.spos, act.epos
             val = '' if rec[se] == 'nan' else rec[se][fs:fe]
             if act.tfunc != None:
                 tfun = 'noma.tfunc.%s(%s)' % (act.tfunc, act.nepr)
                 val = eval(tfun) 
-            if act.varr != None: varr[act.varr].append(val)
-            if act.fname: vals.append(val)
-            if act.fepr != None:
-                if not re.search(act.fepr, val): 
-                    if act.skipf == 0: 
-                        radd = False
-                        break
-                    skipf = act.skipf
-            else: skipf = act.skipf
-            
-        if radd: outf.write('%s\n' % '\t'.join(va for va in vals))
+            if nepr == None:
+                if act.varr != None: varr[act.varr].append(val)
+                if act.fname: vals.append(val)
+                if act.fepr != None:
+                    if not re.search(act.fepr, val): 
+                        if act.skipf == 0: 
+                            radd = False
+                            break
+                        skipf = act.skipf
+                else: skipf = act.skipf
+            else:
+                if act.varr != None: val = varr[act.varr][0]
+                nepr = nepr.split(':')
+                if nepr[0] == 's': val = [r.split(nepr[1]) for r in val.split(nepr[2])]
+                sdf = pd.DataFrame(val)
+                getEFields(sdf,acts[idx+1:],vals,outf,smap)
+                break
+        
+        if radd and nepr == None: outf.write('%s\n' % '\t'.join(va for va in vals))
 
     
 def nomaMain(sf, tf, set, acts, smap, gtag, xlobj):
@@ -315,7 +331,7 @@ def nomaMain(sf, tf, set, acts, smap, gtag, xlobj):
         if isinstance(df, str):
             res = df
         else:
-            with open(tf, 'w') as fw:
+            with open(tf, 'w', newline='') as fw:
                 iniv = [] if gtag == None else [gtag]
                 getEFields(df, acts, iniv, fw, smap)
             res = "Successfully Executed " + set.name
@@ -326,7 +342,7 @@ def nomaMain(sf, tf, set, acts, smap, gtag, xlobj):
         else:
             noma.tfunc.G_DUPL = [None]*20
             noma.tfunc.G_QNO = [0]
-            with open(tf, 'w') as fw:
+            with open(tf, 'w', newline='') as fw:
                 iniv = [] if gtag == None else [gtag]
                 getEFields(df, acts, iniv, fw, smap)
             res = "Successfully Executed " + set.name
@@ -370,7 +386,7 @@ def nomaCreateTbl(tb, acts):
             flds.append('%s %s' % (act.fname, act.fchar))
     fds = ','.join(fd for fd in flds)
     create_sql = "CREATE TABLE %s (%s)" % (tb, fds)
-    with connections['xnaxdr'].cursor() as cursor:
+    with connections[XDBX].cursor() as cursor:
         cursor.execute(create_sql)
         
 def nomaRetrace(df, ld):
@@ -405,6 +421,6 @@ def nomaExecT(strm):
 def nomaLoad(tf, tb, hd):
     load_sql = "LOAD DATA LOCAL INFILE %s INTO TABLE %s \
                 FIELDS TERMINATED BY '\t' %s" % (tf, tb, hd)
-    with connections['xnaxdr'].cursor() as cursor:
+    with connections[XDBX].cursor() as cursor:
         cursor.execute(load_sql)
 '''

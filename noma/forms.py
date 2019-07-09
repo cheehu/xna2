@@ -1,9 +1,27 @@
 from django import forms
-#from django.db import connections
+from django.db import connections
 from .models import NomaSetAct, NomaGrp
 from django.conf import settings
 from django.forms import widgets
-from .utils import get_dbtbs, get_dirs
+import re, pathlib
+
+BDIR = pathlib.Path(settings.GRP_DIR) / settings.LOG_DIR / 'uploads'
+ODIR = pathlib.Path(settings.GRP_DIR) / settings.LOG_DIR / 'downloads'
+XDBX = 'xnaxdr'
+
+def get_dbtbs(ptt):
+    with connections[XDBX].cursor() as cursor:
+        cursor.execute('SHOW TABLES')
+    tbls = [(tb[0],tb[0]) for tb in cursor if re.search(ptt,tb[0])]
+    tbls.append(('-----','-----'))
+    return tuple(tbls)
+
+def get_dirs(spath,fx):
+    sdir = pathlib.Path(spath)
+    p = sdir.glob('**/*')
+    dirs = [(x.relative_to(sdir),x.relative_to(sdir)) for x in p if x.is_dir() or x.suffix.lower() == fx]
+    return tuple(dirs)
+    
 
 class NomaSetActForm(forms.ModelForm):
     class Meta:
@@ -18,7 +36,8 @@ class NomaSetActForm(forms.ModelForm):
                     'skipb': forms.NumberInput(attrs={'style': 'width:5ch'}),
                     'fname': forms.TextInput(attrs={'size': 10}),
                     'varr': forms.NumberInput(attrs={'style': 'width:5ch'}),
-                    'tfunc': forms.Select(attrs={'style': 'width:20ch'})
+                    'tfunc': forms.Select(attrs={'style': 'width:20ch'}),
+                    'xtag': forms.TextInput(attrs={'size': 26})
                     
 				 }        
     
@@ -28,6 +47,18 @@ class NomaSetActForm(forms.ModelForm):
         self.fields['tfunc'].widget.can_change_related = False
         self.fields['eepr'].strip = False
 
+class NomaSetForm(forms.ModelForm):
+    class Meta:
+        widgets = { 'name': forms.TextInput(attrs={'size': 30}),
+                    'desc': forms.TextInput(attrs={'size': 60}),
+                    'type': forms.Select(attrs={'style': 'width:20ch'}),
+                    'sepr': forms.TextInput(attrs={'size': 50}),
+                    'eepr': forms.TextInput(attrs={'size': 50}),
+                    'depr': forms.TextInput(attrs={'size': 50}),
+                    'xtag': forms.TextInput(attrs={'size': 50}),
+                 } 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         
     
 class NomaGrpForm(forms.ModelForm):
@@ -40,10 +71,10 @@ class NomaGrpForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['sdir'] = forms.ChoiceField(label='Source Folder',
-                                                choices=get_dirs(settings.GRP_DIR,'.zip'),
+                                                choices=get_dirs(BDIR,'.zip'),
                                                 widget=widgets.Select(attrs={'style': 'width:50ch'}))
         self.fields['ldir'] = forms.ChoiceField(label='Log Folder',
-                                                choices=get_dirs(settings.LOG_DIR,None),
+                                                choices=get_dirs(ODIR,None),
                                                 widget=widgets.Select(attrs={'style': 'width:50ch'}))
         
         
@@ -64,7 +95,7 @@ class queGrpForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['ldir'] = forms.ChoiceField(label='Output Folder',
-                                                choices=get_dirs(settings.LOG_DIR,None),
+                                                choices=get_dirs(ODIR,None),
                                                 widget=widgets.Select(attrs={'style': 'width:50ch'}))
         
 class queSetSqlForm(forms.ModelForm):
@@ -81,9 +112,9 @@ class queSetSqlForm(forms.ModelForm):
         
 class NomaStrMapForm(forms.ModelForm):
     class Meta:
-        widgets = { 'ostr': forms.TextInput(attrs={'size': 100}),
-                    'cstr': forms.TextInput(attrs={'size': 30}),
-                    'desc': forms.TextInput(attrs={'size': 100}),
+        widgets = { 'ostr': forms.TextInput(attrs={'size': 80}),
+                    'cstr': forms.TextInput(attrs={'size': 70}),
+                    'desc': forms.TextInput(attrs={'size': 80}),
         		 }
                  
                  

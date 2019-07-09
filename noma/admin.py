@@ -2,7 +2,7 @@ import json
 from django.contrib import admin
 from inline_admin_extensions.admin import PaginationInline
 from .models import NomaGrp, NomaSet, NomaGrpSet, NomaFunc, NomaQFunc, NomaStrMap, NomaStrMapSet, NomaSetAct, queGrp, queSet, queGrpSet, queSetSql
-from .forms import NomaSetActForm, NomaGrpForm, NomaGrpSetForm, NomaExecForm, queSetSqlForm, queGrpForm, queExecForm, NomaStrMapForm
+from .forms import NomaSetForm, NomaSetActForm, NomaGrpForm, NomaGrpSetForm, NomaExecForm, queSetSqlForm, queGrpForm, queExecForm, NomaStrMapForm
 from .utils import nomaInfo, nomaCount, queInfo, queCount
 from django.contrib.admin import AdminSite
 from django.shortcuts import redirect, render
@@ -60,7 +60,7 @@ class NomaSetActInline(admin.TabularInline):
         
 class NomaGrpAdmin(admin.ModelAdmin):
     form = NomaGrpForm
-    list_display = ('name', 'desc', 'sdir', 'ldir')
+    #list_display = ('name', 'desc', 'sdir', 'ldir')
     fields = [('name', 'gtag', 'desc'), ('sdir', 'sfile', 'ldir')]
     inlines = [NomaGrpSetInline]
     save_as = True
@@ -89,11 +89,15 @@ class NomaGrpAdmin(admin.ModelAdmin):
     
     
 class NomaSetAdmin(admin.ModelAdmin):
-    list_display = ('name', 'desc', 'type')
+    form = NomaSetForm
     fields = [('name', 'desc', 'type'), 
-              ('sepr', 'eepr', 'depr')]
+              ('sepr', 'eepr', 'depr', 'xtag')]
     inlines = [NomaSetActInline]
     save_as = True
+    
+    class Media:
+        css = { "all" : ("css/nomabase.css",) }
+        
     
 class queGrpSetInline(admin.TabularInline):
     model = queGrpSet

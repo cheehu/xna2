@@ -32,6 +32,7 @@ class NomaSet(models.Model):
     sepr = models.CharField(max_length=100, blank=True, null=True)
     eepr = models.CharField(max_length=100, blank=True, null=True)
     depr = models.CharField(max_length=100, blank=True, null=True)
+    xtag = models.CharField(max_length=200, blank=True, null=True)
 
     class Meta:    
         db_table = 'noma_set'
@@ -82,7 +83,7 @@ class NomaSetAct(models.Model):
     set = models.ForeignKey(NomaSet,
                             related_name='acts',
                             on_delete=models.CASCADE)
-    seq = models.DecimalField(max_digits=3, decimal_places=1)
+    seq = models.DecimalField(max_digits=4, decimal_places=1)
     spos = models.SmallIntegerField(blank=True, null=True)
     epos = models.SmallIntegerField(blank=True, null=True)
     sepr = models.CharField(max_length=100, blank=True, null=True)
@@ -95,6 +96,7 @@ class NomaSetAct(models.Model):
     skipb = models.SmallIntegerField(default=0)
     varr = models.SmallIntegerField(blank=True, null=True)
     fchar = models.CharField(max_length=100, blank=True, null=True)
+    xtag = models.CharField(max_length=200, blank=True, null=True)
     
     class Meta:
         db_table = 'noma_setact'
@@ -198,7 +200,7 @@ class NomaStrMap(models.Model):
     ctag = models.ForeignKey(NomaStrMapSet,related_name='Maps',on_delete=models.CASCADE)
     #ctag = models.CharField(max_length=20)
     ostr = models.CharField(max_length=200)
-    cstr = models.CharField(max_length=50, blank=True, default='')
+    cstr = models.CharField(max_length=200, blank=True, default='')
     desc = models.CharField(max_length=200, blank=True, null=True)
     
     class Meta:

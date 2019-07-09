@@ -1,6 +1,7 @@
 from datetime import datetime
 import codecs, re, csv, pandas as pd
 from django.db import connection, connections
+from .forms import XDBX
 G_SDICT = {}
 G_DUPL = []
 G_QNO = []
@@ -498,7 +499,12 @@ def x_grp(va,k,fc=['G'],dp=',',d=','):
 def rep_if(val,ostr,ystr,nstr=''):
     if nstr == '': nstr = val
     cv = ystr if re.search(ostr,val) else nstr 
-    return cv    
+    return cv
+
+def reps_if(val,ostr,ystr,nstr=''):
+    if nstr == '': nstr = val
+    cv = re.sub(ostr,ystr,val) if re.search(ostr,val) else nstr 
+    return cv     
     
 def nume(val):
     if not val.isdigit(): val = ''
@@ -519,8 +525,11 @@ def repstra(val,dc,od,nd,tl):
         cvs.append(cv)
     return nd.join(cv for cv in cvs)
 
-def repstr1(val,dc,tl):
-    cv = dc[val] if val in dc else val[0:tl]
+def repstr1(val,dc,tl,c=None):
+    if val in dc:
+        cv = dc[val]
+        if c != None: cv = cv.split(',')[c]
+    else: cv = val[0:tl]
     return cv
     
 def repstr2(val,od,nd,sfx):
@@ -528,6 +537,15 @@ def repstr2(val,od,nd,sfx):
     cv = '' if val == '' else nd.join('%s%s' % (v,sfx) for v in vs)
     return cv
 
+def ip_gw(ipa, mask, fa=True):
+    m = re.search('(\d+\.\d+\.\d+\.)(\d+)',ipa)
+    a = int(m[2])
+    s = 256/(2**(int(mask)-24))
+    n = int(a - (a % s))
+    g = n + 1 if fa else n + s - 1
+    return '%s%s' % (m[1],g)
+    
+    
 def nx_line(va, sepr,l,n=1):
     stx = '^(.*?)%s(.*?\n){%s}' % (sepr, n)
     a = re.search(stx, va)
@@ -580,11 +598,38 @@ def xl_hdr_v(rec,cols,dc):
     cv = ','.join('%s=%s' % (dc[str(c)] if str(c) in dc else "n_a", rec[c]) for c in cls)
     return cv    
 
+def d_expand(d):
+    if d[-1] == '%': return [d[:-1]]
+    m = re.search('&',d)
+    if m == None: return [d]
+    d = re.sub('&&-|&&(?=\d)','~',d)
+    d = re.sub('&-','&',d)
+    e = d.split('&')
+    if len(e) > 1: e = [e[0]] + ['%s%s' % (e[0][:-1], c) for c in e[1:]]
+    g = []
+    for k in e:
+        d = k.split('~')
+        if len(d) > 1:
+            if len(d[1]) == 1: 
+                p = d[0][:-1]
+                f = int(d[0][-1])
+                j = int(d[1]) - f
+            else:
+                for b in range(len(d[0])):
+                    if d[0][b] != d[1][b]: break
+                p = d[0][:b-1]
+                f = int(d[0][b:])
+                j = int(d[1][b:]) - f
+            g += ['%s%s' % (p,(f+i)) for i in range(j+1)]
+        else: g.append(k)
+    return g
+    
+
     
 def q_basic(stbl, flds=['*'], cond=''):
     if flds[0] == '*': 
         if len(flds) > 1:
-            with connections['xnaxdr'].cursor() as cursor:
+            with connections[XDBX].cursor() as cursor:
                 cursor.execute("SHOW COLUMNS FROM %s" % stbl)
             cols = ','.join(cn[0] for cn in cursor if cn[0] not in flds)
         else: cols = '*'
@@ -605,7 +650,7 @@ def q_delete(stbl, cond='gtag is null'):
     return sqlq
 
 def q_copy(stbl, tag1, tag2):
-    with connections['xnaxdr'].cursor() as cursor:
+    with connections[XDBX].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
         acols = ','.join(cn[0] for cn in cursor)
         bcols = "'%s',%s" % (tag2, ','.join(cn[0] for cn in cursor if cn[0] != 'gtag'))
@@ -617,7 +662,7 @@ def q_copy(stbl, tag1, tag2):
     
 
 def q_compare(stbl, tag1, tag2):
-    with connections['xnaxdr'].cursor() as cursor:
+    with connections[XDBX].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
     ncols = ','.join(cn[0] for cn in cursor if cn[0][:2] == 'c_')
     icols = ','.join(cn[0] for cn in cursor if cn[0][:2] =='i_')
@@ -655,7 +700,7 @@ def q_compare(stbl, tag1, tag2):
     return sqlq
 
 def q_comp(stbl, tag1, tag2):
-    with connections['xnaxdr'].cursor() as cursor:
+    with connections[XDBX].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
     ncols = ','.join(cn[0] for cn in cursor if cn[0][:2] == 'c_')
     qcols = "ckey ckey_0,%s" % ','.join('%s %s' % (cn[0],cn[0][2:]) for cn in cursor if cn[0][:2] == 'c_')
@@ -712,7 +757,7 @@ def q_mstr(ma, fd):
     return ','.join(m for m in ml)   
     
 def q_mmls(stbl, mc, md, mm, tag1, tag2):
-    with connections['xnaxdr'].cursor() as cursor:
+    with connections[XDBX].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
     sqlc = q_comp(stbl,tag1,tag2)
     cps = "ckey_0,%s,act" % ','.join(cn[0][2:] for cn in cursor if cn[0][:2] == 'c_')
@@ -724,7 +769,7 @@ def q_mmls(stbl, mc, md, mm, tag1, tag2):
     return sqlq
 
 def q_comps(stbl,ck,cd,rtag,ctags):
-    with connections['xnaxdr'].cursor() as cursor:
+    with connections[XDBX].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
     kcols = ',"-",'.join(k for k in ck)
     ckey = '_'.join(k for k in ck)
@@ -765,7 +810,7 @@ union (select t1.subname, t2.attr, t1.aval val, t1.res res from %(stb2)s t1\n\
 join %(stb1)s t2 on t1.gtag = t2.gtag and t1.atyp = t2.atyp and t1.subname = t2.subname\n\
 where t1.rtyp = "FIN" and %(c2)s)' % {"c3":c3, "c2":c2, "stb1":stb1,"stb2":stb2}
     v4 = 'select * from %s where %s' % (rtbl, gtag) 
-    with connections['xnaxdr'].cursor() as cursor:
+    with connections[XDBX].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % rtbl)
         cols = ','.join('v2.%s' % cn[0] for cn in cursor if cn[0] not in ['gtag','resn','rtyp'])
     
@@ -774,7 +819,7 @@ where t1.rtyp = "FIN" and %(c2)s)' % {"c3":c3, "c2":c2, "stb1":stb1,"stb2":stb2}
     while d < maxd:
         sql1 = 'SELECT v1.*, v2.attr attr%(n)s, v2.val val%(n)s, v2.ana ana%(m)s FROM (%(q)s) v1\n\
 join (%(v2)s) v2 on v1.ana%(n)s = v2.subname' % {"n":d, "m":d+1, "q":sql1, "v2":v2}
-        df = pd.read_sql_query(sql1, connections['xnaxdr'])
+        df = pd.read_sql_query(sql1, connections[XDBX])
         if df.empty: break
         d += 1
     
