@@ -60,7 +60,7 @@ class NomaSetActInline(admin.TabularInline):
         
 class NomaGrpAdmin(admin.ModelAdmin):
     form = NomaGrpForm
-    #list_display = ('name', 'desc', 'sdir', 'ldir')
+    list_display = ('name', 'desc', 'sdir', 'ldir')
     fields = [('name', 'gtag', 'desc'), ('sdir', 'sfile', 'ldir')]
     inlines = [NomaGrpSetInline]
     save_as = True
