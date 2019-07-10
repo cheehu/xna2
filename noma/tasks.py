@@ -135,8 +135,18 @@ def nomaQExe(id, total_count):
                     if str(sq.qfunc) == 'q_basic':
                         cd = re.search('gtag="(.+?)"',sqlq)
                         if cd != None:
-                            xtbl = out_xml(sq.stbl,df,cd[0])
-                            if xtbl != None: doc.append(xtbl)
+                            xtbl, xtbr = out_xml(sq.stbl,df,cd[0])
+                            if xtbl != None: 
+                                if xtbr == '': tr = doc
+                                else:
+                                    ttag = xtbr.split('/')
+                                    tr = doc.find(ttag[0])
+                                    if tr == None: tr = ET.SubElement(doc,ttag[0])
+                                    if len(ttag) > 1:
+                                        for k in ttag[1:]:
+                                            c = tr.find(k)
+                                            tr = ET.SubElement(tr, k) if c == None else c
+                                tr.append(xtbl)
                     
                 f.write("       Succesfully Executed:\n\n")
                 current_task.update_state(state='PROGRESS',
@@ -161,15 +171,15 @@ def nomaQExe(id, total_count):
 
 def out_xml(stbl, df, cd, sub=None):
     try: set = NomaSet.objects.get(name=stbl)
-    except NomaSet.DoesNotExist: return None
-    if set.xtag == None: return None
+    except NomaSet.DoesNotExist: return None, None 
+    if set.xtag == None: return None, None
     ttag = set.xtag.split(',')
-    if ttag[0] == 's' and sub == None: return None
+    if ttag[0] == 's' and sub == None: return None, None
     acts = set.acts.filter(xtag__isnull=False)
-    if len(acts) == 0: return None
-    tbl = ET.Element(ttag[1])
+    if len(acts) == 0: return None, None
+    tbl = ET.Element(ttag[2])
     t = tbl
-    for tag in ttag[2:-1]: t = ET.SubElement(t, tag)
+    for tag in ttag[3:-1]: t = ET.SubElement(t, tag)
     for rno,rec in df.iterrows():
         r = ET.SubElement(t, ttag[-1])
         for act in acts:
@@ -187,8 +197,8 @@ def out_xml(stbl, df, cd, sub=None):
                 c1 = cd + ''.join(' and %s="%s"' % (k,rec[k]) for k in rtag[2:])
                 sqlq = noma.tfunc.q_basic(rtag[1],['*','gtag'],c1)
                 df1 = pd.read_sql_query(sqlq, connections[XDBX])
-                if not df1.empty: r.append(out_xml(rtag[1],df1,c1,''))
-    return tbl
+                if not df1.empty: r.append(out_xml(rtag[1],df1,c1,'')[0])
+    return tbl, ttag[1]
     
 def excelout(df,writer,workbook,sqn,ldir):
     format_col = workbook.add_format({'align':'left','font_size':9})
