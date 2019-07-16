@@ -26,18 +26,18 @@ def get_dirs(spath,fx):
 class NomaSetActForm(forms.ModelForm):
     class Meta:
         widgets = { 'seq': forms.NumberInput(attrs={'style': 'width:6ch'}),
-                    'nepr': forms.TextInput(attrs={'size': 26}),
-                    'sepr': forms.TextInput(attrs={'size': 26}),
-                    'eepr': forms.TextInput(attrs={'size': 26}),
-                    'spos': forms.NumberInput(attrs={'style': 'width:5ch'}),                    
-                    'epos': forms.NumberInput(attrs={'style': 'width:5ch'}),
-                    'fepr': forms.TextInput(attrs={'size': 20}),
-                    'skipf': forms.NumberInput(attrs={'style': 'width:5ch'}), 
-                    'skipb': forms.NumberInput(attrs={'style': 'width:5ch'}),
+                    'nepr': forms.TextInput(attrs={'size': 24}),
+                    'sepr': forms.TextInput(attrs={'size': 24}),
+                    'eepr': forms.TextInput(attrs={'size': 24}),
+                    'spos': forms.NumberInput(attrs={'style': 'width:4ch'}),                    
+                    'epos': forms.NumberInput(attrs={'style': 'width:4ch'}),
+                    'fepr': forms.TextInput(attrs={'size': 18}),
+                    'skipf': forms.NumberInput(attrs={'style': 'width:4ch'}), 
+                    'skipb': forms.NumberInput(attrs={'style': 'width:4ch'}),
                     'fname': forms.TextInput(attrs={'size': 10}),
-                    'varr': forms.NumberInput(attrs={'style': 'width:5ch'}),
-                    'tfunc': forms.Select(attrs={'style': 'width:20ch'}),
-                    'xtag': forms.TextInput(attrs={'size': 26})
+                    'varr': forms.NumberInput(attrs={'style': 'width:3ch'}),
+                    'tfunc': forms.Select(attrs={'style': 'width:18ch'}),
+                    'xtag': forms.TextInput(attrs={'size': 22})
                     
 				 }        
     
@@ -49,13 +49,13 @@ class NomaSetActForm(forms.ModelForm):
 
 class NomaSetForm(forms.ModelForm):
     class Meta:
-        widgets = { 'name': forms.TextInput(attrs={'size': 30}),
+        widgets = { 'name': forms.TextInput(attrs={'size': 25}),
                     'desc': forms.TextInput(attrs={'size': 60}),
-                    'type': forms.Select(attrs={'style': 'width:20ch'}),
-                    'sepr': forms.TextInput(attrs={'size': 50}),
-                    'eepr': forms.TextInput(attrs={'size': 50}),
-                    'depr': forms.TextInput(attrs={'size': 50}),
-                    'xtag': forms.TextInput(attrs={'size': 50}),
+                    'type': forms.Select(attrs={'style': 'width:16ch'}),
+                    'sepr': forms.TextInput(attrs={'size': 60}),
+                    'eepr': forms.TextInput(attrs={'size': 60}),
+                    'depr': forms.TextInput(attrs={'size': 60}),
+                    'xtag': forms.TextInput(attrs={'size': 60}),
                  } 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -88,7 +88,7 @@ class NomaGrpSetForm(forms.ModelForm):
 class queGrpForm(forms.ModelForm):
     class Meta:
         widgets = { 'name': forms.TextInput(attrs={'size': 30}),
-                    'desc': forms.TextInput(attrs={'size': 60}),
+                    'desc': forms.TextInput(attrs={'size': 80}),
                     'tfile': forms.TextInput(attrs={'size': 50}),
                     'gpar': forms.TextInput(attrs={'size': 80})                    
                  }
@@ -112,9 +112,9 @@ class queSetSqlForm(forms.ModelForm):
         
 class NomaStrMapForm(forms.ModelForm):
     class Meta:
-        widgets = { 'ostr': forms.TextInput(attrs={'size': 80}),
+        widgets = { 'ostr': forms.TextInput(attrs={'size': 70}),
                     'cstr': forms.TextInput(attrs={'size': 70}),
-                    'desc': forms.TextInput(attrs={'size': 80}),
+                    'desc': forms.TextInput(attrs={'size': 70}),
         		 }
                  
                  

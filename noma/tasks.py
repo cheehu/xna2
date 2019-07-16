@@ -15,13 +15,21 @@ def nomaExec(id, total_count):
     grp = NomaGrp.objects.get(pk=int(id))
     sdir = BDIR / grp.sdir
     if sdir.suffix == '.zip': sdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
-    gsets = grp.sets.all()
     if grp.name == 'noma_excel':
         sfile = sdir / grp.sfile
         sd = pd.read_excel(sfile, sheet_name=None)
         sd.pop('Index',None)
         esets = [NomaSet(name=k, type='xl', sepr=[k,0,0,None], eepr=[None,None], depr=None,xtag=None) for k in sd]
         gsets = [NomaGrpSet(grp=grp, seq=i, set=esets[i], sfile=k, ttbl=k) for i, k in enumerate(sd)]
+    else:
+        gsets = [] 
+        for gs in grp.sets.all():
+            if gs.set.name == 'noma_group':
+                try: 
+                    gp = NomaGrp.objects.get(name=gs.sfile)
+                    gsets += gp.sets.all()
+                except NomaGrp.DoesNotExist: continue
+            else: gsets.append(gs)
     ldir = ODIR / grp.ldir
     noma.tfunc.G_SDICT.clear()
     noma.tfunc.G_SDICT.update({'ldir':ldir})

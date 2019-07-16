@@ -90,8 +90,9 @@ class NomaGrpAdmin(admin.ModelAdmin):
     
 class NomaSetAdmin(admin.ModelAdmin):
     form = NomaSetForm
-    fields = [('name', 'desc', 'type'), 
-              ('sepr', 'eepr', 'depr', 'xtag')]
+    list_display = ('name', 'type', 'desc')
+    fields = [('name', 'desc', 'type', 'xtag'), 
+              ('sepr', 'eepr', 'depr')]
     inlines = [NomaSetActInline]
     save_as = True
     

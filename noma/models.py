@@ -56,7 +56,7 @@ class NomaGrpSet(models.Model):
 
     class Meta:
         db_table = 'noma_grpset'
-        unique_together = (('grp', 'set'),)
+        unique_together = (('grp', 'set', 'sfile'),)
         verbose_name = "Noma Set"
         verbose_name_plural = " Noma Sets"
         ordering = ['seq']
@@ -74,6 +74,7 @@ class NomaFunc(models.Model):
     class Meta:
         db_table = 'noma_func'
         verbose_name_plural = '[A] T-Functions'
+        ordering = ['epr']
         
     def __str__(self):
         return self.epr
@@ -128,6 +129,7 @@ class queSet(models.Model):
     class Meta:    
         db_table = 'que_set'
         verbose_name_plural = " [K] Query Sets"
+        ordering = ['name']
         
     def __str__(self):
         return self.name

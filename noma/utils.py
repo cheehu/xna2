@@ -28,7 +28,6 @@ def nomaInfo(nomagrp, id, nomaset):
     grp = nomagrp.objects.get(pk=int(id))
     sdir = BDIR / grp.sdir
     if sdir.suffix == '.zip': sdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
-    grpsets = grp.sets.all()
     if grp.name == 'noma_excel':
         sfile = sdir / grp.sfile
         if list(sdir.glob(grp.sfile)):
@@ -37,6 +36,15 @@ def nomaInfo(nomagrp, id, nomaset):
             esets = [NomaSet(name=k, type='xl', sepr=[k,0,0,None], eepr=[None,None], depr=None,xtag=None) for k in sd]
             grpsets = [NomaGrpSet(grp=grp, seq=i, set=esets[i], sfile=k, ttbl=k) for i, k in enumerate(sd)]
         else: return 'No file matching %s \n' % sfile
+    else:
+        grpsets = [] 
+        for gs in grp.sets.all():
+            if gs.set.name == 'noma_group':
+                try: 
+                    gp = NomaGrp.objects.get(name=gs.sfile)
+                    grpsets += gp.sets.all()
+                except NomaGrp.DoesNotExist: continue
+            else: grpsets.append(gs)
     log_content = "NOMA Group:%s gtag:%s\n From Source DIR: %s\n\n" % (grp.name, grp.gtag, sdir)
     for grpset in grpsets:
         set = nomaset.objects.get(name=grpset.set) if grp.name != 'noma_excel' else esets[grpset.seq]
@@ -65,7 +73,6 @@ def nomaInfo(nomagrp, id, nomaset):
 def nomaCount(nomagrp, id, nomaset):
     grp = nomagrp.objects.get(pk=int(id))
     sdir = dirzip(grp.sdir)
-    grpsets = grp.sets.all()
     if grp.name == 'noma_excel':
         sfile = sdir / grp.sfile
         if list(sdir.glob(grp.sfile)):
@@ -74,6 +81,15 @@ def nomaCount(nomagrp, id, nomaset):
             esets = [NomaSet(name=k, type='xl', sepr=[k,0,0,None], eepr=[None,None], depr=None,xtag=None) for k in sd]
             grpsets = [NomaGrpSet(grp=grp, seq=i, set=esets[i], sfile=k, ttbl=k) for i, k in enumerate(sd)]
         else: return 0
+    else:
+        grpsets = [] 
+        for gs in grp.sets.all():
+            if gs.set.name == 'noma_group':
+                try: 
+                    gp = NomaGrp.objects.get(name=gs.sfile)
+                    grpsets += gp.sets.all()
+                except NomaGrp.DoesNotExist: continue
+            else: grpsets.append(gs)
     task_count = 0
     for grpset in grpsets:
         set = nomaset.objects.get(name=grpset.set) if grp.name != 'noma_excel' else esets[grpset.seq]
