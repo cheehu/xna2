@@ -48,6 +48,11 @@
                     pgrbar.val(data.result.percent);
                     frm.html('User created ' + data.result.current + ' out of ' + data.result.total);
                 }
+                else if (data.state == 'SUCCESS') {
+                    pgrbar.css('display', 'inline');
+                    pgrbar.val(data.result.percent);
+                    frm.html('Set Executed: ' + data.result.current + ' out of ' + data.result.total + ' Done!!!');
+                }
                 if (data.state != 'SUCCESS') {
                     setTimeout(function () {
                         get_task_info(task_id)

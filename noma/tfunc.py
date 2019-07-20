@@ -767,8 +767,34 @@ def q_mmls(stbl, mc, md, mm, tag1, tag2):
     sqlq = "%s UNION\n%s" % (sql2, sql1)
     
     return sqlq
-
+    
 def q_comps(stbl,ck,cd,rtag,ctags):
+    with connections['xnaxdr'].cursor() as cursor:
+        cursor.execute("SHOW COLUMNS FROM %s" % stbl)
+    kcols = ',"-",'.join(k for k in ck)
+    ckey = '_'.join(k for k in ck)
+    kcol1 = ',"-",'.join('t1.%s' % k for k in ck)
+    onk = ' and '.join('t1.%s=t2.%s' % (k, k) for k in ck)
+    if cd != '': cd =  'and %s' % ' and '.join(c for c in cd.split(','))
+    ck.append('gtag')
+    ncols = ','.join(cn[0] for cn in cursor if cn[0] not in ck)
+    nc1 = ncols.split(',')[0]
+    ccols = ','.join('if(t1.%s=t2.%s,":=",concat("<>",ifnull(t2.%s,"null")))' % (cn[0],cn[0],cn[0]) for cn in cursor if cn[0] not in ck)
+    ccols1 = ','.join('concat("null<>",t1.%s)' % cn[0] for cn in cursor if cn[0] not in ck)
+    if ccols != '': ccols = ',' + ccols
+    sql1 = 'SELECT concat("*",%s) gtag, concat(%s) %s, %s FROM %s WHERE gtag=%s %s' % (rtag, kcols, ckey, ncols, stbl, rtag, cd)
+    sql2 = ''
+    for ctag in ctags.split(','):
+        sq1 = 'SELECT %s, concat(%s) %s\n FROM (SELECT * FROM %s WHERE gtag=%s %s) t1\n' % (ctag, kcol1, ccols, stbl, rtag, cd)
+        sq2 = 'LEFT JOIN (SELECT * FROM %s WHERE gtag=%s %s) t2 On %s\nUNION\n' % (stbl, ctag, cd, onk)    
+        sq3 = 'SELECT t1.gtag, concat(%s), %s\n FROM (SELECT * FROM %s WHERE gtag=%s %s) t1\n' % (kcol1, ccols1, stbl, ctag, cd)
+        sq4 = 'LEFT JOIN (SELECT * FROM %s WHERE gtag=%s %s) t2 On %s where isnull(t2.%s)' % (stbl, rtag, cd, onk,ck[0])
+        sql2 += '\nunion\n%s%s%s%s' % (sq1, sq2, sq3, sq4)
+    sqlq = 'SELECT *, if(%s="<>null","<>null",if(left(%s,6)="null<>","null<>",if(locate("<>",concat(%s))>0,"<>",""))) _comp_ FROM\n(%s%s) v0 \nORDER BY %s, gtag' % (nc1, nc1, ncols,sql1, sql2, ckey)
+    return sqlq
+    
+
+def q_comps_o(stbl,ck,cd,rtag,ctags):
     with connections[XDBX].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
     kcols = ',"-",'.join(k for k in ck)

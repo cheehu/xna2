@@ -106,6 +106,7 @@ def nomaQExe(id, total_count):
     workbook = writer.book
     format_hdr = workbook.add_format({'bold': True, 'fg_color': '#D7E4BC'})
     format_title = workbook.add_format({'bold': True, 'fg_color': '#00FFFF', 'font_size':14})
+    format_comp = workbook.add_format({'bold': True, 'fg_color': '#FFFF00'})
     Indexsheet = workbook.add_worksheet('Index')
     Indexsheet.write(0,0, grp.name, format_title)
     Indexsheet.write(0,1, '', format_title)
@@ -139,6 +140,9 @@ def nomaQExe(id, total_count):
                         cursor.execute(sqlq)
                 else: 
                     df = pd.read_sql_query(sqlq, connections[XDBX])
+                    if '_comp_' in df.columns.values:
+                        if any('<>' in s for s in df['_comp_'].values):
+                            Indexsheet.write(j+1,2, 'Data Different!!!', format_comp)
                     excelout(df,writer,workbook,sq.name,ldir)
                     if str(sq.qfunc) == 'q_basic':
                         cd = re.search('gtag="(.+?)"',sqlq)
@@ -182,6 +186,7 @@ def out_xml(stbl, df, cd, sub=None):
     except NomaSet.DoesNotExist: return None, None 
     if set.xtag == None: return None, None
     ttag = set.xtag.split(',')
+    ttl = len(ttag)
     if ttag[0] == 's' and sub == None: return None, None
     acts = set.acts.filter(xtag__isnull=False)
     if len(acts) == 0: return None, None
@@ -189,7 +194,7 @@ def out_xml(stbl, df, cd, sub=None):
     t = tbl
     for tag in ttag[3:-1]: t = ET.SubElement(t, tag)
     for rno,rec in df.iterrows():
-        r = ET.SubElement(t, ttag[-1])
+        r = ET.SubElement(t, ttag[-1]) if ttl > 3 else t
         for act in acts:
             rtag = act.xtag.split(',')
             if rtag[0] == 'v':
