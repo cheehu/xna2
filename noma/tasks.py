@@ -1,6 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 from celery import shared_task, current_task
-import os, pathlib, traceback
+import os, pathlib, traceback, copy
 from .models import NomaGrp, NomaSet, NomaGrpSet, queGrp, queSet, NomaStrMap, NomaSetAct
 from .utils import nomaMain, nomaRetrace, get_qtbs
 from django.db import connection, connections
@@ -183,7 +183,7 @@ def nomaQExe(id, total_count):
 
 def out_xml(stbl, df, cd, sub=None):
     try: set = NomaSet.objects.get(name=stbl)
-    except NomaSet.DoesNotExist: return None, None 
+    except NomaSet.DoesNotExist: return None, None
     if set.xtag == None: return None, None
     ttag = set.xtag.split(',')
     ttl = len(ttag)
@@ -191,10 +191,10 @@ def out_xml(stbl, df, cd, sub=None):
     acts = set.acts.filter(xtag__isnull=False)
     if len(acts) == 0: return None, None
     tbl = ET.Element(ttag[2])
-    t = tbl
+    t, e = tbl, []
     for tag in ttag[3:-1]: t = ET.SubElement(t, tag)
     for rno,rec in df.iterrows():
-        r = ET.SubElement(t, ttag[-1]) if ttl > 3 else t
+        r = ET.SubElement(t, ttag[3]) if ttl > 3 else t
         for act in acts:
             rtag = act.xtag.split(',')
             if rtag[0] == 'v':
@@ -210,9 +210,20 @@ def out_xml(stbl, df, cd, sub=None):
                 c1 = cd + ''.join(' and %s="%s"' % (k,rec[k]) for k in rtag[2:])
                 sqlq = noma.tfunc.q_basic(rtag[1],['*','gtag'],c1)
                 df1 = pd.read_sql_query(sqlq, connections[XDBX])
-                if not df1.empty: r.append(out_xml(rtag[1],df1,c1,'')[0])
+                if not df1.empty: 
+                    tb = out_xml(rtag[1],df1,c1,'')[0]
+                    if isinstance(tb, list): 
+                        if rtag[0] == 'l': 
+                            for te in tb: r.append(te)
+                        else: 
+                            c = ET.SubElement(r,tb[0].tag)
+                            for te in tb: c.append(te[0])
+                    else: r.append(tb)
+        if ttl == 3: e.append(copy.deepcopy(r))
+    if len(e) > 1: tbl = e    
     return tbl, ttag[1]
     
+
 def excelout(df,writer,workbook,sqn,ldir):
     format_col = workbook.add_format({'align':'left','font_size':9})
     format_hdr = workbook.add_format({'bold': True, 'fg_color': '#D7E4BC'})
