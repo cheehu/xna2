@@ -496,9 +496,16 @@ def x_grp(va,k,fc=['G'],dp=',',d=','):
     return d.join('%s:%s' % (idx,row[fc[1]]) for idx, row in df.iterrows())
     
     
-def rep_if(val,ostr,ystr,nstr=''):
-    if nstr == '': nstr = val
+def rep_if(val,ostr,ystr,nstr=None):
+    if nstr == None: nstr = val
     cv = ystr if re.search(ostr,val) else nstr 
+    return cv
+
+def rep_ifn(val,ostr,ystr,nstr=None):
+    if val == '': return ''
+    if nstr == None: nstr = val
+    if ostr == '': cv = ystr if val == '' else ntsr
+    else: cv = ystr if re.search(ostr,val) else nstr 
     return cv
 
 def reps_if(val,ostr,ystr,nstr=''):
@@ -544,6 +551,13 @@ def ip_gw(ipa, mask, fa=True):
     n = int(a - (a % s))
     g = n + 1 if fa else n + s - 1
     return '%s%s' % (m[1],g)
+
+def ip_sn(ipa, mask):
+    m = re.search('(\d+\.\d+\.\d+\.)(\d+)',ipa)
+    a = int(m[2])
+    s = 256/(2**(int(mask)-24))
+    n = int(a - (a % s))
+    return '%s%s' % (m[1],n)
     
     
 def nx_line(va, sepr,l,n=1):
@@ -654,7 +668,7 @@ def q_copy(stbl, tag1, tag2):
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
         acols = ','.join(cn[0] for cn in cursor)
         bcols = "'%s',%s" % (tag2, ','.join(cn[0] for cn in cursor if cn[0] != 'gtag'))
-        sqlq = "INSERT INTO %s (%s) SELECT %s FROM %s WHERE gtag='%s'" % (stbl, acols, bcols, stbl, tag1)
+        sqlq = "INSERT IGNORE INTO %s (%s) SELECT %s FROM %s WHERE gtag='%s'" % (stbl, acols, bcols, stbl, tag1)
         cursor.execute(sqlq)
     sqlq = "SELECT * FROM %s WHERE gtag='%s'" % (stbl, tag2)
     

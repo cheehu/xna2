@@ -378,7 +378,7 @@ def queInfo(quegrp, id, queset):
         log_content = log_content + "   Query SQL Sequences:\n"
         for sq in set.Sqls.all():
             ps = "'%s',%s,%s,%s" % (sq.stbl,sq.qpar,grpset.spar,grp.gpar)
-            pars = '(%s)' % ','.join(p for p in ps.split(',') if p != '')
+            pars = '(%s)' % ','.join(p for p in ps.split(',') if p != '' and p[:2] != '__')
             log_content = log_content + "       %s  -  %s%s\n" % (sq.seq, sq.qfunc, pars)
         log_content = log_content + "\n"
     return log_content

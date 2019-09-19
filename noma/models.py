@@ -97,7 +97,7 @@ class NomaSetAct(models.Model):
     skipb = models.SmallIntegerField(default=0)
     varr = models.SmallIntegerField(blank=True, null=True)
     fchar = models.CharField(max_length=100, blank=True, null=True)
-    xtag = models.CharField(max_length=200, blank=True, null=True)
+    xtag = models.CharField(max_length=300, blank=True, null=True)
     
     class Meta:
         db_table = 'noma_setact'

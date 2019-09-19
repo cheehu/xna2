@@ -5,7 +5,7 @@ from .models import NomaGrp, NomaSet, NomaGrpSet, queGrp, queSet, NomaStrMap, No
 from .utils import nomaMain, nomaRetrace, get_qtbs
 from django.db import connection, connections
 import re, pandas as pd
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET, xml.dom.minidom
 import noma.tfunc
 from .forms import XDBX, BDIR, ODIR
 
@@ -66,7 +66,12 @@ def nomaExec(id, total_count):
                 if set.type == 'xl' and sfile != pfile: xlobj = pd.ExcelFile(sfile)
                 f.write("       %s\n" % sfile.name)
                 i = i + 1
-                msg = nomaMain(sfile, tfile, set, acts, smap, grp.gtag, xlobj)
+                try: msg = nomaMain(sfile, tfile, set, acts, smap, grp.gtag, xlobj)
+                except Exception as e:
+                    info = '"%s"' % e
+                    sta = 'Error occurs at NomaSet %s -- ' % set.name
+                    current_task.update_state(state='FAILURE', meta={'status': sta, 'info': info})
+                    return {'status': sta, 'info': info}
                 pfile = sfile
                 f.write("%s\n" % msg)
                 f.flush()
@@ -108,30 +113,40 @@ def nomaQExe(id, total_count):
     format_title = workbook.add_format({'bold': True, 'fg_color': '#00FFFF', 'font_size':14})
     format_comp = workbook.add_format({'bold': True, 'fg_color': '#FFFF00'})
     Indexsheet = workbook.add_worksheet('Index')
-    Indexsheet.write(0,0, grp.name, format_title)
+    gpars = '(%s)' % ','.join(p for p in grp.gpar.split(',') if p != '' and p[:2] != '__')
+    Indexsheet.write(0,0, '%s %s' % (grp.name, '' if gpars == '()' else gpars), format_title)
     Indexsheet.write(0,1, '', format_title)
     Indexsheet.set_column(0, 0, 3)
     Indexsheet.set_column(1, 1, 80)
     f=open(ldir / (grp.name + '.log'), "w+")
     f.write("Executing Que Group: %s Output to DIR: %s\n\n" % (grp, ldir))
     i, j = 0, 0
-    doc = ET.Element('config')
+    xdg = {p.split('=')[0][2:]: p.split('=')[1] for p in grp.gpar.split(',') if p[:2] == '__'}
+    if 'xroot' in xdg:
+        doc = ET.Element(xdg['xroot'])
+        for k, v in xdg.items(): 
+            if k[:5] == 'xmlns': doc.set(k,v)
+    else: doc = None
     for grpset in grp.sets.all():
         j += 1
         set = queSet.objects.get(name=grpset.set)
         f.write("Executing Query Set: %s\n" % set.name)
-        Indexsheet.write(j+1,0, set.name, format_hdr)
+        spars = '(%s)' % ','.join(p for p in grpset.spar.split(',') if p != '' and p[:2] != '__')
+        Indexsheet.write(j+1,0, '%s %s' % (set.name, '' if spars == '()' else spars), format_hdr)
         Indexsheet.write(j+1,1, '', format_hdr)
         f.write("   NOMA Queries Sequences:\n")
+        if doc != None:
+            xds = {p.split('=')[0][2:]: p.split('=')[1] for p in grpset.spar.split(',') if p[:7] == '__xmlns'}
+            for k, v in xds.items(): doc.set(k,v)
         for sq in set.Sqls.all():
             i += 1
             j += 1
             ps = "'%s',%s,%s,%s" % (sq.stbl,sq.qpar,grpset.spar,grp.gpar)
-            pars = '(%s)' % ','.join(p for p in ps.split(',') if p != '')
-            ps = pars if len(pars) < 100 else pars[:120]
+            pars = '(%s)' % ','.join(p for p in ps.split(',') if p != '' and p[:2] != '__')
             f.write("       %s  -  %s  -   %s%s\n" % (sq.seq, sq.name, sq.qfunc, pars))
             hl = 'internal:%s!A1' % sq.name
-            Indexsheet.write_url(j+1,1, hl, string='%s: %s' % (sq.name,ps))
+            qpars = '(%s)' % ','.join(p for p in sq.qpar.split(',') if p != '' and p[:2] != '__')
+            Indexsheet.write_url(j+1,1, hl, string='%s %s' % (sq.name,'' if qpars == '()' else qpars))
             qfun = 'noma.tfunc.%s%s' % (sq.qfunc, pars)
             try:
                 sqlq = eval(qfun) 
@@ -140,15 +155,18 @@ def nomaQExe(id, total_count):
                         cursor.execute(sqlq)
                 else: 
                     df = pd.read_sql_query(sqlq, connections[XDBX])
+                    Indexsheet.write(j+1,2, len(df))
                     if '_comp_' in df.columns.values:
                         if any('<>' in s for s in df['_comp_'].values):
-                            Indexsheet.write(j+1,2, 'Data Different!!!', format_comp)
+                            Indexsheet.write(j+1,3, 'Data Different!!!', format_comp)
                     excelout(df,writer,workbook,sq.name,ldir)
-                    if str(sq.qfunc) == 'q_basic':
+                    if str(sq.qfunc) == 'q_basic' and doc != None:
                         cd = re.search('gtag="(.+?)"',sqlq)
                         if cd != None:
                             xtbl, xtbr = out_xml(sq.stbl,df,cd[0])
                             if xtbl != None: 
+                                xdq = {p.split('=')[0][2:]: p.split('=')[1] for p in sq.qpar.split(',') if p[:7] == '__xmlns'}
+                                for k, v in xdq.items(): doc.set(k,v)
                                 if xtbr == '': tr = doc
                                 else:
                                     ttag = xtbr.split('/')
@@ -156,10 +174,17 @@ def nomaQExe(id, total_count):
                                     if tr == None: tr = ET.SubElement(doc,ttag[0])
                                     if len(ttag) > 1:
                                         for k in ttag[1:]:
+                                            if k == '': break
                                             c = tr.find(k)
                                             tr = ET.SubElement(tr, k) if c == None else c
-                                tr.append(xtbl)
-                    
+                                if isinstance(xtbl, list): 
+                                    if ttag[-1] == '':
+                                        for te in xtbl: tr.append(te)
+                                    else:
+                                        g = ET.SubElement(tr,xtbl[0].tag)
+                                        for te in xtbl: g.append(te[0])
+                                else: tr.append(xtbl)
+                
                 f.write("       Succesfully Executed:\n\n")
                 current_task.update_state(state='PROGRESS',
                                           meta={'current': i, 'total': total_count, 'status': 'ok',
@@ -174,10 +199,16 @@ def nomaQExe(id, total_count):
         f.write("\n")
     writer.save()
     f.close()
-    if len(doc) > 0: 
-        xt = ET.ElementTree(doc)
-        with open('%s.xml' % tfile, 'w+b') as xf: 
-            xt.write(xf) 
+    if doc != None and len(doc) > 0: 
+        try:
+            xmlstr = xml.dom.minidom.parseString(ET.tostring(doc)).toprettyxml('  ')
+            with open('%s.xml' % tfile, 'w') as xf: 
+                xf.write(xmlstr)
+        except Exception as e:
+            info = '"%s"' % e
+            sta = 'Error occurs in xml output!'
+            current_task.update_state(state='FAILURE', meta={'status': sta, 'info': info})
+            return {'status': sta, 'info': info}
         
     return {'current': total_count, 'total': total_count, 'percent': 100, 'status': 'ok',}
 
@@ -194,33 +225,49 @@ def out_xml(stbl, df, cd, sub=None):
     t, e = tbl, []
     for tag in ttag[3:-1]: t = ET.SubElement(t, tag)
     for rno,rec in df.iterrows():
-        r = ET.SubElement(t, ttag[3]) if ttl > 3 else t
+        if ttl > 3: r = ET.SubElement(t, ttag[-1])  
+        else: r = copy.deepcopy(tbl) if ttag[0] == 's' else t
         for act in acts:
             rtag = act.xtag.split(',')
-            if rtag[0] == 'v':
-                if rec[act.fname] == '': continue
-                f = r.find(rtag[1])
-                if f == None: f = ET.SubElement(r,rtag[1])
+            etyp = rtag[0]
+            if etyp[0] == 'v':
+                if rec[act.fname] == '' and etyp[-1] == 'v' : continue
+                rtg = rec[rtag[1][1:]] if rtag[1][0] == '_' else rtag[1]
+                f = r.find(rtg)
+                if f == None: f = ET.SubElement(r,rtg)
                 if len(rtag) > 2:
                     for k in rtag[2:]:
-                        c = f.find(k)
-                        f = ET.SubElement(f, k) if c == None else c
+                        k1 = rec[k[1:]] if k[0] == '_' else k
+                        c = f.find(k1)
+                        f = ET.SubElement(f, k1) if c == None else c
                 f.text = rec[act.fname]
             else:
                 c1 = cd + ''.join(' and %s="%s"' % (k,rec[k]) for k in rtag[2:])
                 sqlq = noma.tfunc.q_basic(rtag[1],['*','gtag'],c1)
                 df1 = pd.read_sql_query(sqlq, connections[XDBX])
                 if not df1.empty: 
-                    tb = out_xml(rtag[1],df1,c1,'')[0]
+                    tb, sr = out_xml(rtag[1],df1,c1,'')
                     if isinstance(tb, list): 
-                        if rtag[0] == 'l': 
+                        if etyp[0] == 'l': 
                             for te in tb: r.append(te)
-                        else: 
+                        elif etyp[0] == 'c': 
                             c = ET.SubElement(r,tb[0].tag)
                             for te in tb: c.append(te[0])
-                    else: r.append(tb)
-        if ttl == 3: e.append(copy.deepcopy(r))
-    if len(e) > 1: tbl = e    
+                        else: 
+                            for te in tb: r.append(te[0])
+                    else: 
+                        f = r
+                        if sr != '':
+                            stag = sr.split('/')
+                            f = r.find(stag[0])
+                            if f == None: f = ET.SubElement(r,stag[0])
+                            if len(stag) > 1:
+                                for k in stag[1:]:
+                                    c = f.find(k)
+                                    f = ET.SubElement(f, k) if c == None else c
+                        f.append(tb)
+        if ttl == 3 and ttag[0] != 't': e.append(copy.deepcopy(r))
+    if len(e) > 0: tbl = e    
     return tbl, ttag[1]
     
 
