@@ -1,7 +1,8 @@
 from datetime import datetime
 import codecs, re, csv, pandas as pd
 from django.db import connection, connections
-from .forms import XDBX
+from .middleware import get_current_ngrp
+#from .forms import XDBX
 G_SDICT = {}
 G_DUPL = []
 G_QNO = []
@@ -14,6 +15,9 @@ def to_byte_str(ba):
 
 def to_bytes(bs):
     return bytes(codecs.decode(bs.strip(), 'unicode_escape'), 'iso_8859-1')
+
+def rstr_to_str_u(bs):
+    return bytes(codecs.decode(bs.strip(), 'unicode_escape'), 'utf8').decode()
 
 def rstr_to_str(bs):
     return bytes(codecs.decode(bs.strip(), 'unicode_escape'), 'iso_8859-1').decode()
@@ -57,7 +61,18 @@ def to_intB(bv):
 
 def to_intBn(bv):
     return int.from_bytes(bv,byteorder='big')
+    
+def to_pcap_ts(bv, ty, ed):
+    s = int.from_bytes(bv[:4],byteorder=ed)
+    ns = int.from_bytes(bv[4:],byteorder=ed)
+    if ty == '128':
+        ts = (s *  4294967296) + ns
+        return (ts//1000000, ts%1000000)
+    return (s, ns)
         
+def to_utc_d(val):
+    return str(datetime.utcfromtimestamp(val))
+    
 def to_utc(bv,ed):
     e = int.from_bytes(bv,byteorder=ed)
     return str(datetime.utcfromtimestamp(e))
@@ -447,6 +462,10 @@ def deseg_s(recs,rno,va,bs):
         ipd += v[1]
     va.append([pid[1:],ipd])
     return str(appl)
+
+def pcap_udp(recs,rno,va):
+    va.append([recs.loc[rno,'pidxx'],recs.loc[rno,'apd']])
+    return recs.loc[rno,'appl']
     
        
 def siphdr(sipmsg,sepr,eepr):
@@ -640,10 +659,10 @@ def d_expand(d):
     
 
     
-def q_basic(stbl, flds=['*'], cond=''):
+def q_basic(xdbx, stbl, flds=['*'], cond=''):
     if flds[0] == '*': 
         if len(flds) > 1:
-            with connections[XDBX].cursor() as cursor:
+            with connections[xdbx].cursor() as cursor:
                 cursor.execute("SHOW COLUMNS FROM %s" % stbl)
             cols = ','.join(cn[0] for cn in cursor if cn[0] not in flds)
         else: cols = '*'
@@ -653,18 +672,18 @@ def q_basic(stbl, flds=['*'], cond=''):
     sqlq = "SELECT %s FROM %s%s" % (cols, stbl, cond)
     return sqlq
     
-def q_grpby(stbl, gby, fn, cond=''):
+def q_grpby(xdbx, stbl, gby, fn, cond=''):
     if cond != '': cond = ' WHERE %s' % cond 
     sqlq = "SELECT %s, %s FROM %s%s Group BY %s" % (gby, fn, stbl, cond, gby)
     return sqlq
 
-def q_delete(stbl, cond='gtag is null'):
+def q_delete(xdbx, stbl, cond='gtag is null'):
     if cond != '': cond = ' WHERE %s' % cond 
     sqlq = "DELETE FROM %s%s" % (stbl, cond)
     return sqlq
 
-def q_copy(stbl, tag1, tag2):
-    with connections[XDBX].cursor() as cursor:
+def q_copy(xdbx, stbl, tag1, tag2):
+    with connections[xdbx].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
         acols = ','.join(cn[0] for cn in cursor)
         bcols = "'%s',%s" % (tag2, ','.join(cn[0] for cn in cursor if cn[0] != 'gtag'))
@@ -675,8 +694,8 @@ def q_copy(stbl, tag1, tag2):
     return sqlq
     
 
-def q_compare(stbl, tag1, tag2):
-    with connections[XDBX].cursor() as cursor:
+def q_compare(xdbx, stbl, tag1, tag2):
+    with connections[xdbx].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
     ncols = ','.join(cn[0] for cn in cursor if cn[0][:2] == 'c_')
     icols = ','.join(cn[0] for cn in cursor if cn[0][:2] =='i_')
@@ -713,8 +732,8 @@ def q_compare(stbl, tag1, tag2):
        
     return sqlq
 
-def q_comp(stbl, tag1, tag2):
-    with connections[XDBX].cursor() as cursor:
+def q_comp(xdbx, stbl, tag1, tag2):
+    with connections[xdbx].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
     ncols = ','.join(cn[0] for cn in cursor if cn[0][:2] == 'c_')
     qcols = "ckey ckey_0,%s" % ','.join('%s %s' % (cn[0],cn[0][2:]) for cn in cursor if cn[0][:2] == 'c_')
@@ -770,8 +789,8 @@ def q_mstr(ma, fd):
         else: ml.append(p)
     return ','.join(m for m in ml)   
     
-def q_mmls(stbl, mc, md, mm, tag1, tag2):
-    with connections[XDBX].cursor() as cursor:
+def q_mmls(xdbx, stbl, mc, md, mm, tag1, tag2):
+    with connections[xdbx].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
     sqlc = q_comp(stbl,tag1,tag2)
     cps = "ckey_0,%s,act" % ','.join(cn[0][2:] for cn in cursor if cn[0][:2] == 'c_')
@@ -782,8 +801,8 @@ def q_mmls(stbl, mc, md, mm, tag1, tag2):
     
     return sqlq
     
-def q_comps(stbl,ck,cd,rtag,ctags):
-    with connections['xnaxdr'].cursor() as cursor:
+def q_comps(xdbx, stbl,ck,cd,rtag,ctags):
+    with connections[xdbx].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
     kcols = ',"-",'.join(k for k in ck)
     ckey = '_'.join(k for k in ck)
@@ -808,8 +827,8 @@ FROM(%s%s) v0 \nORDER BY _%s, gtag' % (nc1, nc1, ncols, sql1, sql2, ckey)
     return sqlq
     
 
-def q_comps_o(stbl,ck,cd,rtag,ctags):
-    with connections[XDBX].cursor() as cursor:
+def q_comps_o(xdbx,stbl,ck,cd,rtag,ctags):
+    with connections[xdbx].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
     kcols = ',"-",'.join(k for k in ck)
     ckey = '_'.join(k for k in ck)
@@ -829,7 +848,7 @@ def q_comps_o(stbl,ck,cd,rtag,ctags):
     
     return sqlq
     
-def q_subana(stb1,atyp,maxd=8,flds=['*'], gtag=''):
+def q_subana(xdbx,stb1,atyp,maxd=8,flds=['*'], gtag=''):
     stb2 = 'mss_attr_val'
     stb3 = 'mss_attr_st'
     atp = 'aif' if atyp in ['MTC', 'MOC'] else atyp 
@@ -850,7 +869,7 @@ union (select t1.subname, t2.attr, t1.aval val, t1.res res from %(stb2)s t1\n\
 join %(stb1)s t2 on t1.gtag = t2.gtag and t1.atyp = t2.atyp and t1.subname = t2.subname\n\
 where t1.rtyp = "FIN" and %(c2)s)' % {"c3":c3, "c2":c2, "stb1":stb1,"stb2":stb2}
     v4 = 'select * from %s where %s' % (rtbl, gtag) 
-    with connections[XDBX].cursor() as cursor:
+    with connections[xdbx].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % rtbl)
         cols = ','.join('v2.%s' % cn[0] for cn in cursor if cn[0] not in ['gtag','resn','rtyp'])
     
@@ -859,7 +878,7 @@ where t1.rtyp = "FIN" and %(c2)s)' % {"c3":c3, "c2":c2, "stb1":stb1,"stb2":stb2}
     while d < maxd:
         sql1 = 'SELECT v1.*, v2.attr attr%(n)s, v2.val val%(n)s, v2.ana ana%(m)s FROM (%(q)s) v1\n\
 join (%(v2)s) v2 on v1.ana%(n)s = v2.subname' % {"n":d, "m":d+1, "q":sql1, "v2":v2}
-        df = pd.read_sql_query(sql1, connections[XDBX])
+        df = pd.read_sql_query(sql1, connections[xdbx])
         if df.empty: break
         d += 1
     

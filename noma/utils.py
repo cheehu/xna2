@@ -1,21 +1,21 @@
 import os, pathlib, zipfile, pandas as pd
 from django.db import connection, connections
 import re, mmap, json, codecs, traceback
+from django.conf import settings
 import noma.tfunc
 from .models import NomaGrp, NomaSet, NomaGrpSet, NomaSetAct
-from .forms import XDBX, BDIR, ODIR
-#from .middleware import get_current_usrgrp, get_current_ndb
+from .middleware import get_current_ngrp
 
-
-def get_qtbs(ptt=''):
-    with connections[XDBX].cursor() as cursor:
+def get_qtbs(xdbx, ptt=''):
+    with connections[xdbx].cursor() as cursor:
         cursor.execute('SHOW TABLES')
     if ptt == '': tbls = [tb[0] for tb in cursor]
     else: tbls = [tb[0] for tb in cursor if re.search(ptt,tb[0])]
     return tbls
 
 def dirzip(spath):
-    sdir = BDIR / spath
+    bdir = pathlib.Path(settings.GRP_DIR) / get_current_ngrp()[2] / 'uploads'
+    sdir = bdir / spath
     if sdir.suffix == '.zip':
         tdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
         with zipfile.ZipFile(sdir,"r") as zip_ref:
@@ -25,8 +25,10 @@ def dirzip(spath):
  
 
 def nomaInfo(nomagrp, id, nomaset):
+    xdbx = get_current_ngrp()[1]
     grp = nomagrp.objects.get(pk=int(id))
-    sdir = BDIR / grp.sdir
+    bdir = pathlib.Path(settings.GRP_DIR) / get_current_ngrp()[2] / 'uploads'
+    sdir = bdir / grp.sdir
     if sdir.suffix == '.zip': sdir = pathlib.Path('%s/%s_unzip' % (sdir.parent, sdir.stem))
     if grp.name == 'noma_excel':
         sfile = sdir / grp.sfile
@@ -54,7 +56,7 @@ def nomaInfo(nomagrp, id, nomaset):
         sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
         log_content = '%s   Source Files: %s\n' % (log_content, sfile)
         if set.type == 'sq': 
-            sfiles = [sfile] if sfile.name in get_qtbs() else []
+            sfiles = [sfile] if sfile.name in get_qtbs(xdbx) else []
         else: sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles:
             for sfile in sfiles:
@@ -71,6 +73,7 @@ def nomaInfo(nomagrp, id, nomaset):
     return log_content
 
 def nomaCount(nomagrp, id, nomaset):
+    xdbx = get_current_ngrp()[1]
     grp = nomagrp.objects.get(pk=int(id))
     sdir = dirzip(grp.sdir)
     if grp.name == 'noma_excel':
@@ -95,7 +98,7 @@ def nomaCount(nomagrp, id, nomaset):
         set = nomaset.objects.get(name=grpset.set) if grp.name != 'noma_excel' else esets[grpset.seq]
         sfile = sdir / grpset.sfile if grp.sfile == None else sdir / grp.sfile
         if set.type == 'sq': 
-            sfiles = [sfile] if sfile.name in get_qtbs() else []
+            sfiles = [sfile] if sfile.name in get_qtbs(xdbx) else []
         else: sfiles = list(sdir.glob(grpset.sfile)) if grp.sfile == None else list(sdir.glob(grp.sfile))
         if sfiles: task_count += len(sfiles)
     return task_count
@@ -190,16 +193,19 @@ def getJFields(records, acts, vs, outf):
             outf.write('%s\n' % '\t'.join(va for va in vals))
 
 def getBRecords(s, sa):
-    sp, ef = int(sa[1]), int(sa[2])
+    sp, ef, n1, n2 = int(sa[1]), int(sa[2]), 0, 0 
+    if sp == 128: n1, n2 = 12, 4
     s.seek(sp)
     rec = []
     cp = sp
     while cp < ef:
-        s.seek(cp+8)
+        s.seek(cp+n1+8)
         plen = 16 + int.from_bytes(s.read(4),byteorder=sa[3])
-        s.seek(cp)
+        s.seek(cp+n1)
         rec.append(s.read(plen))
-        cp += plen
+        cp += plen + n1 + n2
+        pad = 4 - (plen % 4)
+        if n2 == 4 and pad < 4: cp += pad 
     return rec
 
 def getBFields(records, acts, vs, outf, sfa, smap):
@@ -230,11 +236,11 @@ def getBFields(records, acts, vs, outf, sfa, smap):
                 if not radd: break
         if radd: outf.write('%s\n' % '\t'.join(va for va in vals))
  
-def getQRecords(sf, gtag):
+def getQRecords(sf, gtag,xdbx):
     cond = '' if gtag == None else ' WHERE gtag="%s"' % gtag 
     sqlq = "SELECT * FROM %s%s" % (sf, cond)         
     try:
-        df = pd.read_sql_query(sqlq, connections[XDBX])
+        df = pd.read_sql_query(sqlq, connections[xdbx])
     except Exception as e:
         info = '"%s"' % e
         #info = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
@@ -303,7 +309,7 @@ def getEFields(df, acts, vs, outf, smap):
         if radd and nepr == None: outf.write('%s\n' % '\t'.join(va for va in vals))
 
     
-def nomaMain(sf, tf, set, acts, smap, gtag, xlobj):
+def nomaMain(sf, tf, set, acts, smap, gtag, xlobj, xdbx):
     if set.type == 'tx':
         with open(sf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
             res = getRecords(s, set.sepr, set.eepr)
@@ -331,8 +337,9 @@ def nomaMain(sf, tf, set, acts, smap, gtag, xlobj):
         sfa[1] = set.sepr
         sfa[2] = sf.stat().st_size
         with open(sf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
+            if set.sepr == '128': s.seek(8)
             mg = s.read(1)
-            sfa[3] = 'little' if mg[0] == 212 else 'big'
+            sfa[3] = 'little' if mg[0] in (212, 77) else 'big'
             res = getBRecords(s, sfa)
         sfa[4] = '%s,%s,%s,%s' % (sfa[0],sfa[1],sfa[2],sfa[3]) 
         noma.tfunc.G_DUPL = [None]*20
@@ -352,7 +359,7 @@ def nomaMain(sf, tf, set, acts, smap, gtag, xlobj):
                 getEFields(df, acts, iniv, fw, smap)
             res = "Successfully Executed " + set.name
     elif set.type == 'sq':
-        df = getQRecords(sf.name,gtag)
+        df = getQRecords(sf.name,gtag,xdbx)
         if isinstance(df, str):
             res = df
         else:
@@ -368,7 +375,8 @@ def nomaMain(sf, tf, set, acts, smap, gtag, xlobj):
 
 def queInfo(quegrp, id, queset):
     grp = quegrp.objects.get(pk=int(id))
-    ldir = ODIR / grp.ldir
+    odir = pathlib.Path(settings.GRP_DIR) / get_current_ngrp()[2] / 'downloads'
+    ldir = odir / grp.ldir
     tfile = ldir / grp.tfile
     log_content = "Query Group:%s to Output File: %s\n\n" % (grp.name, tfile)
     grpsets = grp.sets.all()
@@ -394,7 +402,7 @@ def queCount(quegrp, id, queset):
     return task_count
     
     
-def nomaCreateTbl(tb, acts):
+def nomaCreateTbl(tb, acts, xdbx):
     hdrs, flds = [], []
     for act in acts:
         if act.fname != None and act.fname not in hdrs: 
@@ -402,26 +410,25 @@ def nomaCreateTbl(tb, acts):
             flds.append('%s %s' % (act.fname, act.fchar))
     fds = ','.join(fd for fd in flds)
     create_sql = "CREATE TABLE %s (%s)" % (tb, fds)
-    with connections[XDBX].cursor() as cursor:
+    with connections[xdbx].cursor() as cursor:
         cursor.execute(create_sql)
         
-def nomaRetrace(df, ld):
+def nomaRetrace(df, tf):
+    fw = open(tf, 'wb')
+    fw.write(b'\xd4\xc3\xb2\xa1\x02\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x01\x00\x00\x00')
     dff = df.groupby('pfile')
     for name,group in dff:
         sfa = name.strip().split(',')
-        sfi = os.path.basename(sfa[0])
-        tf = '%s_%s' % (ld, sfi)
         with open(sfa[0], 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
-            pcaphdr = s.read(24)
             res = getBRecords(s, sfa)
-        with open(tf, 'wb') as fw:
-            fw.write(pcaphdr)
             for row,data in group.iterrows():
-                pkts = data['pidx'].split('-')
-                for p in pkts:
-                    pt = p.split(',')
-                    fw.write(res[int(pt[0])])
-
+                segs = data['pidxx'].split('&')
+                for seg in segs:
+                    gtps = seg.split('-')
+                    for gtp in gtps:
+                        pkts = gtp.split(',')
+                        for p in pkts: fw.write(res[int(p)])
+                    
 
 
 def nomaExecT(strm):

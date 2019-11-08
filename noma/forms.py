@@ -4,13 +4,15 @@ from .models import NomaSetAct, NomaGrp
 from django.conf import settings
 from django.forms import widgets
 import re, pathlib
+from .middleware import get_current_ngrp
 
-BDIR = pathlib.Path(settings.GRP_DIR) / settings.LOG_DIR / 'uploads'
-ODIR = pathlib.Path(settings.GRP_DIR) / settings.LOG_DIR / 'downloads'
-XDBX = 'xnaxdr'
+#BDIR = pathlib.Path(settings.GRP_DIR) / settings.LOG_DIR / 'uploads'
+#ODIR = pathlib.Path(settings.GRP_DIR) / settings.LOG_DIR / 'downloads'
+#XDBX = 'xnaxdr'
 
 def get_dbtbs(ptt):
-    with connections[XDBX].cursor() as cursor:
+    xdbx = get_current_ngrp()[1]
+    with connections[xdbx].cursor() as cursor:
         cursor.execute('SHOW TABLES')
     tbls = [(tb[0],tb[0]) for tb in cursor if re.search(ptt,tb[0])]
     tbls.append(('-----','-----'))
@@ -70,11 +72,14 @@ class NomaGrpForm(forms.ModelForm):
                  } 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        ngrp = get_current_ngrp()
+        bdir = pathlib.Path(settings.GRP_DIR) / ngrp[2] / 'uploads'
+        odir = pathlib.Path(settings.GRP_DIR) / ngrp[2] / 'downloads'
         self.fields['sdir'] = forms.ChoiceField(label='Source Folder',
-                                                choices=get_dirs(BDIR,'.zip'),
+                                                choices=get_dirs(bdir,'.zip'),
                                                 widget=widgets.Select(attrs={'style': 'width:50ch'}))
         self.fields['ldir'] = forms.ChoiceField(label='Log Folder',
-                                                choices=get_dirs(ODIR,None),
+                                                choices=get_dirs(odir,None),
                                                 widget=widgets.Select(attrs={'style': 'width:50ch'}))
         
         
@@ -94,8 +99,10 @@ class queGrpForm(forms.ModelForm):
                  }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        ngrp = get_current_ngrp()
+        odir = pathlib.Path(settings.GRP_DIR) / ngrp[2] / 'downloads'
         self.fields['ldir'] = forms.ChoiceField(label='Output Folder',
-                                                choices=get_dirs(ODIR,None),
+                                                choices=get_dirs(odir,None),
                                                 widget=widgets.Select(attrs={'style': 'width:50ch'}))
         
 class queSetSqlForm(forms.ModelForm):

@@ -10,6 +10,9 @@ from django.urls import path
 from .tasks import nomaExec, nomaQExe
 from django.http import HttpResponse
 from django.forms import BaseInlineFormSet
+#from django.conf import settings
+from .middleware import get_current_ngrp
+
 
 class NomaAdminSite(AdminSite):
     site_header = "NOMA Portal"
@@ -78,8 +81,9 @@ class NomaGrpAdmin(admin.ModelAdmin):
     def exec_view(self, request, pk):
         total_count = nomaCount(NomaGrp,pk,NomaSet)
         if request.method == 'POST':
+            ngrp = get_current_ngrp()
             form = NomaExecForm(request.POST)
-            task = nomaExec.delay(pk,total_count)
+            task = nomaExec.delay(pk,total_count,ngrp)
             return HttpResponse(json.dumps({'task_id': task.id}), content_type='application/json')
         else:
             log_content = nomaInfo(NomaGrp,pk,NomaSet)
@@ -133,8 +137,9 @@ class queGrpAdmin(admin.ModelAdmin):
     def que_view(self, request, pk):
         total_count = queCount(queGrp,pk,queSet)
         if request.method == 'POST':
+            ngrp = get_current_ngrp()
             form = queExecForm(request.POST)
-            task = nomaQExe.delay(pk,total_count)
+            task = nomaQExe.delay(pk,total_count,ngrp)
             return HttpResponse(json.dumps({'task_id': task.id}), content_type='application/json')
         else:
             log_content = queInfo(queGrp,pk,queSet)

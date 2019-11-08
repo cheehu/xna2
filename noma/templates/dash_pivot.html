@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+{%load plotly_dash%}
+{% load bootstrap4%}
+{% bootstrap_css%}
+{% plotly_header %}
+    <head>
+        <title>NOMA Dash</title>
+    </head>
+    <body>
+        <div id="react-entry-point">
+            <div class="{%plotly_class name="NomaDash" template_type="div-direct"%}">
+                {%plotly_direct name="NomaDash"%}
+            </div>
+        </div>
+    </body>
+{% plotly_footer%}
+</html>

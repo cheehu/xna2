@@ -28,6 +28,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'bootstrap4',
+    'django_plotly_dash.apps.DjangoPlotlyDashConfig',
+    'dash_pivottable',
 ]
 
 MIDDLEWARE = [
@@ -37,7 +40,10 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'django_plotly_dash.middleware.BaseMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'noma.middleware.TenantMiddleware',
+    
 ]
 
 ROOT_URLCONF = 'xna2.urls'
@@ -82,6 +88,14 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD'),
         'OPTIONS': {'autocommit': True}
     },
+    'nomadb1': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'nomadb1',
+        'HOSTNAME': 'localhost',
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'OPTIONS': {'autocommit': True}
+    },
     'xnaxdr': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': config('XDB_NAME'),
@@ -89,9 +103,19 @@ DATABASES = {
         'USER': config('DB_USER'),
         'PASSWORD': config('DB_PASSWORD'),
         'OPTIONS': {'autocommit': True}
+    },
+    'xnaxdr1': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'xnaxdr1',
+        'HOSTNAME': 'localhost',
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'OPTIONS': {'autocommit': True}
     }
+    
 }
 
+DATABASE_ROUTERS = ['noma.middleware.TenantRouter']
 
 # Password validation
 # https://docs.djangoproject.com/en/2.0/ref/settings/#auth-password-validators
@@ -124,6 +148,13 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
+
+PLOTLY_DASH = {
+
+    # Name of view wrapping function
+    "view_decorator": "django_plotly_dash.access.login_required",
+
+}
 
 
 # Static files (CSS, JavaScript, Images)

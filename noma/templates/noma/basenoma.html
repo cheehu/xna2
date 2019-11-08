@@ -54,6 +54,10 @@
                     pgrbar.css('display', 'inline');
                     pgrbar.val(data.result.percent);
                     frm.html('Set Executed: ' + data.result.current + ' out of ' + data.result.total + ' Done!!!');
+                    if (data.result.dashf) {
+                        frm.html('You are being redirected to NOMA Dash Pivottable/Pivotchart...'); 
+                        setTimeout(function () {get_dash(data.result.dashf)}, 1000);
+                    }
                 }
                 if (data.state != 'SUCCESS') {
                     setTimeout(function () {
@@ -65,6 +69,10 @@
                 frm.html(data.result.info);
             }
         });
+    }
+    
+    function get_dash(dsn) {
+        window.location.href = "/dash-pivot/?dataset=" + dsn;
     }
   </script>
   
