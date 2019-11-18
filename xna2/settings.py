@@ -75,7 +75,6 @@ TEMPLATE_LOADERS = (
 )
 
 
-
 WSGI_APPLICATION = 'xna2.wsgi.application'
 
 
@@ -169,30 +168,6 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static/")
 STATIC_URL = '/static/'
 
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
-
-'''
-STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-
-    'django_plotly_dash.finders.DashAssetFinder',
-    'django_plotly_dash.finders.DashComponentFinder',
-    'django_plotly_dash.finders.DashAppDirectoryFinder',
-]
-
-# Plotly components containing static content that should
-# be handled by the Django staticfiles infrastructure
-
-PLOTLY_COMPONENTS = [
-    'dash_core_components',
-    'dash_html_components',
-    'dash_bootstrap_components',
-    'dash_renderer',
-    'dpd_components',
-    'dpd_static_support',
-]
-'''
-
 
 
 CELERY_BROKER_URL = 'redis://localhost:6379'
