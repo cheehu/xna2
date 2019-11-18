@@ -204,8 +204,11 @@ def getBRecords(s, sa):
         s.seek(cp+n1)
         rec.append(s.read(plen))
         cp += plen + n1 + n2
-        pad = 4 - (plen % 4)
-        if n2 == 4 and pad < 4: cp += pad 
+        if n2 == 4:
+            pad = 4 - (plen % 4)
+            if pad < 4: cp += pad
+            s.seek(cp)
+            if s.read(4) != b'\x06\x00\x00\x00': break
     return rec
 
 def getBFields(records, acts, vs, outf, sfa, smap):
@@ -415,7 +418,9 @@ def nomaCreateTbl(tb, acts, xdbx):
         
 def nomaRetrace(df, tf):
     fw = open(tf, 'wb')
-    fw.write(b'\xd4\xc3\xb2\xa1\x02\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x01\x00\x00\x00')
+    sfa = df['pfile'][0].split(',')
+    if sfa[1] == '128': fw.write(b'\n\r\r\n`\x00\x00\x00M<+\x1a\x01\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\x04\x00<\x00----- NOMA Retrace pcapng 2019-11-14 by Hu Chee Kiong ------\x00\x00\x00\x00`\x00\x00\x00\x01\x00\x00\x00 \x00\x00\x00\x01\x00\x00\x00\x00 \x00\x00\t\x00\x01\x00\x06\x00\x00\x00\x00\x00\x00\x00 \x00\x00\x00')
+    else: fw.write(b'\xd4\xc3\xb2\xa1\x02\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x01\x00\x00\x00')
     dff = df.groupby('pfile')
     for name,group in dff:
         sfa = name.strip().split(',')
@@ -427,8 +432,18 @@ def nomaRetrace(df, tf):
                     gtps = seg.split('-')
                     for gtp in gtps:
                         pkts = gtp.split(',')
-                        for p in pkts: fw.write(res[int(p)])
-                    
+                        for p in pkts: 
+                            if sfa[1] == '128': 
+                                plen = len(res[int(p)])
+                                pad = 4 - (plen % 4)
+                                padl = pad if pad < 4 else 0
+                                plen += 16 + padl
+                                pl = plen.to_bytes(4, byteorder=sfa[3])
+                                #print(plen, pl)
+                                fw.write(b'\x06\x00\x00\x00' + pl + b'\x00\x00\x00\x00')
+                                fw.write(res[int(p)])
+                                fw.write(bytes(padl) + pl)
+                            else: fw.write(res[int(p)])
 
 
 def nomaExecT(strm):
