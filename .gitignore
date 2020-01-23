@@ -4,3 +4,7 @@
 *.pyc
 *.pyo
 *.pot
+noma/migrations/
+noma/static/dash/
+/static/
+test_*

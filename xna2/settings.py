@@ -179,4 +179,28 @@ CELERY_RESULT_SERIALIZER = 'json'
 GRP_DIR = config('IN_DIR')
 LOG_DIR = config('OUT_DIR')
 
+
+# Staticfiles finders for locating dash app assets and related files
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+
+    'django_plotly_dash.finders.DashAssetFinder',
+    'django_plotly_dash.finders.DashComponentFinder',
+    'django_plotly_dash.finders.DashAppDirectoryFinder',
+]
+
+# Plotly components containing static content that should
+# be handled by the Django staticfiles infrastructure
+PLOTLY_COMPONENTS = [
+    'dash_core_components',
+    'dash_html_components',
+    'dash_bootstrap_components',
+    'dash_renderer',
+    'dpd_components',
+    'dpd_static_support',
+    'dash_pivottable',
+]
+
+
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 2000
