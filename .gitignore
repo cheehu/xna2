@@ -7,4 +7,4 @@
 noma/migrations/
 noma/static/dash/
 /static/
-test_*
+tested_*

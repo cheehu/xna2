@@ -22,34 +22,14 @@ gtag = 'NTAS_v01'
 ttype = 'tx'
 tname='ntas_lic_cls'
 sepr=r'<cls:cls>'
-eepr=r'</*>'
-depr=r'<cls:cls>'
-xtag=r'c,ntas:license-management,feature-info:features/,feature-info:feature'
+eepr=r'</cls:cls>'
+depr=r'</*>'
+xtag=r'c,ntas:license-management,cls:cls/,cls:cls'
 cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr,xtag=xtag)
 if savenoma == 1: cs.save()
 acts = []
 acts.append(sa(set=cs,seq=1,spos=0,sepr=r':feature-code>',eepr=r'</',fname='fea',xtag=r'v,feature-info:feature-code',fchar=r'VARCHAR(10)'))
 acts.append(sa(set=cs,seq=2,spos=0,sepr=r':administrative-state>',eepr=r'</',fname='sta',xtag=r'v,feature-info:administrative-state',fchar=r'VARCHAR(10)'))
-
-
-gtag = 'TS42_v00'
-ttype = 'tx'
-tname = 'otas_cdr_file'
-sepr = r'ZGAL::ST=A;'
-eepr = r'\nCOMM'
-depr = r'##'
-xtag = None
-
-cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr,xtag=xtag)
-if savenoma == 1: cs.save()
-acts = []
-acts.append(sa(set=cs,seq=1,spos=0,sepr=r'FILENAME:\s+',eepr=r'\n',fname='filen',fchar=r'VARCHAR(50)'))
-acts.append(sa(set=cs,seq=2,spos=0,sepr=r'SERVICE:\s+',eepr=r'\n',fname='serv',fchar=r'VARCHAR(10)'))
-acts.append(sa(set=cs,seq=3,spos=0,sepr=r'STATE:\s+',eepr=r'\n',fname='sta',fchar=r'VARCHAR(10)'))
-acts.append(sa(set=cs,seq=4,spos=0,sepr=r'USED FOR:\s+',eepr=r'\n',fname='ufor',fchar=r'VARCHAR(10)'))
-acts.append(sa(set=cs,seq=5,spos=0,sepr=r'BLOCK VERSION:\s+',eepr=r'\n',fname='bver',fchar=r'VARCHAR(30)'))
-acts.append(sa(set=cs,seq=6,spos=0,sepr=r'VERSION NUMBER:\s+',eepr=r'\n',fname='vern',fchar=r'VARCHAR(10)'))
-
 
 
 #tfunc=nf04,nepr=r'val,"ON","true","false"',

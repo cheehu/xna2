@@ -1,0 +1,29 @@
+NOMA is standing on not one but many giants, most of the heavylifiting are done the giants listed below:
+
+Python ecosystem (for the full list of depenencies, see noma_dependencies.txt)
+MariaDB & HeidiSQL
+Django Web Framework
+Plotly-Dash and react-pivottable
+Nginx & Gunicorn
+CentOS
+Notepad++
+Celery + Redis
+git-scm.com
+
+
+NOMA relies heavily on codes contributed by others, here is the partial list:
+
+1. react-pivottable:
+https://github.com/plotly/react-pivottable
+https://github.com/xhlulu/dash_pivottable
+https://github.com/GibbsConsulting/django-plotly-dash
+
+2. celery & redis ssynchronous task execution:
+https://rakibul.net/django-celery-1
+https://medium.com/@markgituma/using-django-2-with-celery-and-redis-21343284827c
+https://computingforgeeks.com/configure-celery-supervisord-centos-7-django-virtualenv/
+
+3. django-inline-admin-extensions
+Django admin interface page with tabularinline will become slow to load when the list of tabular iems become too long (> 30 items). 
+The solution is to add pagination (with 20 items per page) to the tabularinline. After googling, I found a working solution from:
+https://github.com/ctxis/django-inline-admin-extensions
