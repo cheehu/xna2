@@ -4,11 +4,11 @@
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+These instructions will get you a copy of the project up and running on your local machine (Windows 7 or later) for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
 ### Prerequisites
 
-	1. Install Notepad++
+	1. Install Notepad++, add NppExec plugin
 	2. Install Mariadb & HeidiSQL
 	3. Create Database nomadb & xnaxdr (for multi-tenent create nomadb1 & xnaxdr1)
 	4. Install Python 3.6.3
@@ -25,7 +25,10 @@ These instructions will get you a copy of the project up and running on your loc
 	10. Create virtual environment named sera_venv in folder pyenvs/sera/
 	11. Activate virtual environment sera_venv (pyvenvs/sera/sera_venv/Scripts/activate)
 	12. cd to /sera/xna2, run pip install -r noma_dependencies.xtx
-	13. Download dash_pivottable from https://github.com/xhlulu/dash_pivottable. Copy dash_pivottable folder to pyvenvs/sera/sera_venv/Lib/site-packages
+	13. To execute NOMA scripts in Notepad++, add in NppExec Execute...
+	    cmd /k C:\pyvenvs\sera\sera_venv\Scripts\activate & python "$(FILE_NAME)" & deactivate & exit
+	13. Download dash_pivottable from https://github.com/xhlulu/dash_pivottable. Copy dash_pivottable folder to 
+	    pyvenvs/sera/sera_venv/Lib/site-packages
 	14. Create data folder (sera/data/nomasftp/uploads & downloads)
 	15. Update settings.ini (using settings.ini.example as template)
 	16. Create a migrations folder under xna2/noma and create an empty  __init__.py inside
@@ -38,7 +41,8 @@ These instructions will get you a copy of the project up and running on your loc
 	22. Launch anonther Powershell, activate sera_venv, Run celery -A xna2 worker -l info
 	23. Open Chrome browser: 127.0.0.1:8000/noma, login using superuser created in step-19
 	24. In developer mode (i.e. runserver and DEBUG=True), copy settings.STATIC_ROOT/dash to xna2/noma/static/dash
-	25. Run NOMA Query Group Dash_Pivot_Datasets, if Dash Pivottable is not loading, use Chrome developer tool (ctrl+shift+i) to check the console errors and 
+	25. Run NOMA Query Group Dash_Pivot_Datasets, if Dash Pivottable is not loading, use Chrome developer tool 
+	    (ctrl+shift+i) to check the console errors and 
 	    correct the dash static files versioning in xna2.noma/static/dash according to the console errors mesages
 
 
@@ -47,9 +51,14 @@ These instructions will get you a copy of the project up and running on your loc
 ![NOMA API ORM](noma_api.png)
 
 
-## Deployment
+## Deployment for Production
 
-NOMA can be deployed on Nginx and Gunicorn running on CentOS. Please contact the author for consulting & system integration serivces.
+NOMA can be deployed as cloud-based service. The deployment guide is still a work in progress. Please contact the author for consulting serivces.
+
+## Contributing
+
+Should you wish to contribute to this repository, please first discuss the change you wish to make via issue, email, or any other method with the owners of this repository
+
 
 ## Authors
 
@@ -60,34 +69,35 @@ NOMA can be deployed on Nginx and Gunicorn running on CentOS. Please contact the
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
+
 ## Acknowledgments
 
-NOMA is standing on the shoulders of giants, all the heavylifiting are done by the giants listed (but not limited to) below:
+NOMA is standing on the shoulders of giants. All the heavylifiting are done by the giants listed (but not limited to) below:
 
 * Python ecosystem (for the full list of depenencies, see noma_dependencies.txt)
-* MariaDB & HeidiSQL
+* MariaDB and HeidiSQL
 * Django Web Framework
 * Plotly-Dash and react-pivottable
-* Nginx & Gunicorn
+* Nginx and Gunicorn
 * CentOS
-* Notepad++
+* Notepad++ with NppExec plugin
 * Celery + Redis
 * git-scm.com
 
 
-NOMA relies heavily on codes contributed by others, here is the partial list:
+NOMA relies heavily on codes contributed by others in the open source community, special thanks to:
 
-1. react-pivottable:
-https://github.com/plotly/react-pivottable
-https://github.com/xhlulu/dash_pivottable
-https://github.com/GibbsConsulting/django-plotly-dash
+1. Django-Plotly-Dash and react-pivottable:
+   * https://github.com/plotly/react-pivottable
+   * https://github.com/xhlulu/dash_pivottable
+   * https://github.com/GibbsConsulting/django-plotly-dash
 
 2. celery & redis ssynchronous task execution:
-https://rakibul.net/django-celery-1
-https://medium.com/@markgituma/using-django-2-with-celery-and-redis-21343284827c
-https://computingforgeeks.com/configure-celery-supervisord-centos-7-django-virtualenv/
+   * https://rakibul.net/django-celery-1
+   * https://medium.com/@markgituma/using-django-2-with-celery-and-redis-21343284827c
+   * https://computingforgeeks.com/configure-celery-supervisord-centos-7-django-virtualenv/
 
 3. django-inline-admin-extensions
-Django admin interface page with tabularinline will become slow to load when the list of tabular items become too long (> 30 items). 
-The solution is to add pagination (with 20 items per page) to the tabularinline. After googling around, I found a working solution from:
-https://github.com/ctxis/django-inline-admin-extensions
+   Django admin interface page with tabularinline will become slow to load when the list of tabular items become too long (> 30 items). 
+   The solution is to add pagination (with 20 items per page) to the tabularinline. After googling around, a working solution is found at:
+   https://github.com/ctxis/django-inline-admin-extensions
