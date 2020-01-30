@@ -27,21 +27,21 @@ These instructions will get you a copy of the project up and running on your loc
 	12. cd to /sera/xna2, run pip install -r noma_dependencies.xtx
 	13. To execute NOMA scripts in Notepad++, add in NppExec Execute...
 	    cmd /k C:\pyvenvs\sera\sera_venv\Scripts\activate & python "$(FILE_NAME)" & deactivate & exit
-	13. Download dash_pivottable from https://github.com/xhlulu/dash_pivottable. Copy dash_pivottable folder to 
+	14. Download dash_pivottable from https://github.com/xhlulu/dash_pivottable. Copy dash_pivottable folder to 
 	    pyvenvs/sera/sera_venv/Lib/site-packages
-	14. Create data folder (sera/data/nomasftp/uploads & downloads)
-	15. Update settings.ini (using settings.ini.example as template)
-	16. Create a migrations folder under xna2/noma and create an empty  __init__.py inside
-	17. Launch Powershell, activate sera_venv, Run python manage.py makemigrations,  python manage.py migrate
-	18. Run HeidiSQL to check NOMA ORM tables are created
-	19. Under sera_venv, Run python manage.py createsuperuser
-	20. Under sera_venv, Run python manage.py collectstatic 
-	    (this will collect all noma static files under settings.STATIC_ROOT
-	21. Under sera_venv, Run python manage.py runserver
-	22. Launch anonther Powershell, activate sera_venv, Run celery -A xna2 worker -l info
-	23. Open Chrome browser: 127.0.0.1:8000/noma, login using superuser created in step-19
-	24. In developer mode (i.e. runserver and DEBUG=True), copy settings.STATIC_ROOT/dash to xna2/noma/static/dash
-	25. Run NOMA Query Group Dash_Pivot_Datasets, if Dash Pivottable is not loading, use Chrome developer tool 
+	15. Create data folder (sera/data/nomasftp/uploads & downloads)
+	16. Update settings.ini (using settings.ini.example as template)
+	17. Create a migrations folder under xna2/noma and create an empty  __init__.py inside
+	18. Launch Powershell, activate sera_venv, Run python manage.py makemigrations,  python manage.py migrate
+	19. Run HeidiSQL to check NOMA ORM tables are created
+	20. Under sera_venv, Run python manage.py createsuperuser
+	21. Under sera_venv, Run python manage.py collectstatic 
+	    (this will collect all noma static files under settings.STATIC_ROOT)
+	22. Under sera_venv, Run python manage.py runserver
+	23. Launch anonther Powershell, activate sera_venv, Run celery -A xna2 worker -l info
+	24. Open Chrome browser: 127.0.0.1:8000/noma, login using superuser created in step-20
+	25. In developer mode (i.e. runserver and DEBUG=True), copy settings.STATIC_ROOT/dash to xna2/noma/static/dash
+	26. Run NOMA Query Group Dash_Pivot_Datasets, if Dash Pivottable is not loading, use Chrome developer tool 
 	    (ctrl+shift+i) to check the console errors and 
 	    correct the dash static files versioning in xna2.noma/static/dash according to the console errors mesages
 
@@ -74,7 +74,7 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 NOMA is standing on the shoulders of giants. All the heavylifiting are done by the giants listed (but not limited to) below:
 
-* Python ecosystem (for the full list of depenencies, see noma_dependencies.txt)
+* Python ecosystem (for the full list of depenencies, see [noma_dependencies.txt](noma_dependencies.txt) file)
 * MariaDB and HeidiSQL
 * Django Web Framework
 * Plotly-Dash and react-pivottable
@@ -98,6 +98,6 @@ NOMA relies heavily on codes contributed by others in the open source community,
    * https://computingforgeeks.com/configure-celery-supervisord-centos-7-django-virtualenv/
 
 3. django-inline-admin-extensions
-   Django admin interface page with tabularinline will become slow to load when the list of tabular items become too long (> 30 items). 
-   The solution is to add pagination (with 20 items per page) to the tabularinline. After googling around, a working solution is found at:
-   https://github.com/ctxis/django-inline-admin-extensions
+   * Django admin interface page with tabularinline will become slow to load when the list of tabular items become too long (> 30 items). 
+     The solution is to add pagination (with 20 items per page) to the tabularinline. After googling around, a working solution is found at:
+     https://github.com/ctxis/django-inline-admin-extensions
