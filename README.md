@@ -92,7 +92,7 @@ NOMA relies heavily on codes contributed by others in the open source community,
    * https://github.com/xhlulu/dash_pivottable
    * https://github.com/GibbsConsulting/django-plotly-dash
 
-2. celery & redis ssynchronous task execution:
+2. celery & redis asynchronous task execution:
    * https://rakibul.net/django-celery-1
    * https://medium.com/@markgituma/using-django-2-with-celery-and-redis-21343284827c
    * https://computingforgeeks.com/configure-celery-supervisord-centos-7-django-virtualenv/
