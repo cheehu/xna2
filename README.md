@@ -395,7 +395,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-NOMA is standing on the shoulders of giants. All the heavylifiting are done by the giants listed (but not limited to) below:
+NOMA is standing on the shoulders of giants. All the heavylifiting are performed by the giants listed (but not limited to) below:
 
 * Python ecosystem (for the full list of depenencies, see [noma_dependencies.txt](noma_dependencies.txt) file)
 * MariaDB and HeidiSQL
