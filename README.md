@@ -73,60 +73,58 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 ### 2. Setting up Git Repositiry for your NOMA Project Fork 
 	
 	2.1. Create Project Fork Git Repository at NOMA Server
-		 $useradd git
-		 $su git
-		 $mkdir .ssh
-		 $chmod 700 .ssh
-		 $touch .ssh/authorized_keys
-		 $chmod 600 .ssh/authorized_keys
-		  - paste NOMA Developer's public key to authorized_keys
-		 $exit (back to root)
-		 $mkdir /mnt/git
-		 $mkdir sera
-		 $cd /mnt/sera
-		 $mkdir xna2.git
-         $cd xna2.git
-		 $git init --bare --shared
-	     $chown -R root:git xna2.git
+		$useradd git
+		$su git
+		$mkdir .ssh
+		$chmod 700 .ssh
+		$touch .ssh/authorized_keys
+		$chmod 600 .ssh/authorized_keys
+			-paste NOMA Developer's public key to authorized_keys
+		$exit (back to root)
+		$mkdir /mnt/git
+		$mkdir sera
+		$cd /mnt/sera
+		$mkdir xna2.git
+		$cd xna2.git
+		$git init --bare --shared
+		$chown -R root:git xna2.git
 
 	2.2. Push NOMA project from development pc (please follow Getting Started Guide for setting up the NOMA Developer pc)
-	     Launch git bash
-         $pwd - to check home directory (e.g. Users/username)
-         - Export user's private to OpenSSH key (PuTTYgen -> Conversion -> Export OPenSSH key), save it to HOME\.ssh\id_rsa
-         $cd /c/sera/xna2
-		 $git status (commit last changes if needed)
-		 $git remote add noma_project_repo git@<NOMA Server IP>:/mnt/git/sera/xna2.git
-		 $git push noma_project_repo master
+		Launch git bash
+		$pwd - to check home directory (e.g. Users/username)
+			-Export user's private to OpenSSH key (PuTTYgen -> Conversion -> Export OPenSSH key), save it to HOME\.ssh\id_rsa
+		$cd /c/sera/xna2
+		$git status (commit last changes if needed)
+		$git remote add noma_project_repo git@<NOMA Server IP>:/mnt/git/sera/xna2.git
+		$git push noma_project_repo master
 
 	2.3. Clone NOMA project to production NOMA Server
-		 login to NOMA Server
-		 $mkdir /mnt/sera
-		 $git clone /mnt/git/sera/xna2.git /mnt/sera/xna2
-		 $cd mnt/sera/xna2
-		 $ls
-		 $git pull
+		login to NOMA Server
+		$mkdir /mnt/sera
+		$git clone /mnt/git/sera/xna2.git /mnt/sera/xna2
+		$cd mnt/sera/xna2
+		$ls
+		$git pull
 
 	2.4. disbale git for bash shell
-		 $cat /etc/shells # if git-shell not there
-		 $which git-shell
-		 $nano /etc/shells (add which git-shell to the bottom)
-		 $chsh git -s <which git shell>
+		$cat /etc/shells # if git-shell not there
+		$which git-shell
+		$nano /etc/shells (add which git-shell to the bottom)
+		$chsh git -s <which git shell>
 
 ### 3. Setting Up MariaDB Server
 
 	3.1. Enable the MariaDB repository. Create a repository file named MariaDB.repo and add the following content:
 		/etc/yum.repos.d/MariaDB.repo
-		# MariaDB 10.3 CentOS repository list - created 2018-05-25 19:02 UTC
-		# http://downloads.mariadb.org/mariadb/repositories/
 		[mariadb]
 		name = MariaDB
 		baseurl = http://yum.mariadb.org/10.3/centos7-amd64
 		gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
 		gpgcheck=1
 
-	3.2 Install the MariaDB server and client packages using yum, same as other CentOS package:
+	3.2. Install the MariaDB server and client packages using yum, same as other CentOS package:
 		$yum install MariaDB-server MariaDB-client MariaDB-shared
-		
+
 		Yum may prompt you to import the MariaDB GPG key:
 		Retrieving key from https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
 		Importing GPG key 0x1BB943DB:
@@ -138,7 +136,7 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 
 		if Transaction Error on Conflict Files, use yum remove <conflicted-pacakage>. Example: yum remove mariadb-common*
 
-	3.3 Once the installation is complete, enable MariaDB to start on boot and start the service:
+	3.3. Once the installation is complete, enable MariaDB to start on boot and start the service:
 		$sudo systemctl enable mariadb
 		$sudo systemctl start mariadb
 
@@ -149,12 +147,12 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 		? mariadb.service - MariaDB 10.3.7 database server
 		Loaded: loaded (/usr/lib/systemd/system/mariadb.service; enabled; vendor preset: disabled)
 		Drop-In: /etc/systemd/system/mariadb.service.d
-           +-migrated-from-my.cnf-settings.conf
+			+-migrated-from-my.cnf-settings.conf
 		Active: inactive (dead)
 		Docs: man:mysqld(8)
-           https://mariadb.com/kb/en/library/systemd/
+			https://mariadb.com/kb/en/library/systemd/
 
-	3.4 The last step is to run the mysql_secure_installation script which will perform several security related tasks:
+	3.4. The last step is to run the mysql_secure_installation script which will perform several security related tasks:
 
 		$mysql_secure_installation
 
@@ -163,12 +161,12 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 		All steps are explained in detail and it is recommended to answer Y (yes) to all questions. 
 		For security reason, disable root login from remote host.
 
-	3.5 Connect to MariaDB from the command line
+	3.5. Connect to MariaDB from the command line
 		To connect to the MariaDB server through the terminal as the root account type:
 
 		$mysql -u root -p
 
-	3.6 Create User Account and Grant Privileges:
+	3.6. Create User Account and Grant Privileges:
 		To create a user that can connect from any host, use the '%' wildcard as a host part:
 
 		CREATE USER 'newuser'@'%' IDENTIFIED BY 'user_password';
@@ -180,8 +178,8 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 		Connect to MariaDB Server using HeidiSQL using the created user (open port 3306 on Firewall).
 
 
-4. Getting NOMA Server off the ground
-	4.1 Creat Virtual Environment for project SERA:
+### 4. Getting NOMA Server off the ground
+	4.1. Creat Virtual Environment for project SERA:
 		$mkdir /usr/venvs/sera
 		$cd /usr/venvs/sera
 		$scl enable rh-python36 bash
@@ -189,29 +187,29 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 		$source sera_venv/bin/activate
 		$cd /mnt/sera/xna2
 		$pip install -r noma_dependencies.txt
-	4.2 modify settings.ini.example with production enviroment variables. save as settings.ini
-	4.3 Create a migrations folder under xna2/noma and create an empty  __init__.py inside
-	4.4 activate sera_venv, Run python manage.py makemigrations,  python manage.py migrate
-	4.5 Run HeidiSQL connect to MariaDB Server to check NOMA ORM tables are created
-	4.6 Under sera_venv, Run python manage.py createsuperuser
-	    (this will collect all noma static files under settings.STATIC_ROOT)
+	4.2. modify settings.ini.example with production enviroment variables. save as settings.ini
+	4.3. Create a migrations folder under xna2/noma and create an empty  __init__.py inside
+	4.4. activate sera_venv, Run python manage.py makemigrations,  python manage.py migrate
+	4.5. Run HeidiSQL connect to MariaDB Server to check NOMA ORM tables are created
+	4.6. Under sera_venv, Run python manage.py createsuperuser
+	     (this will collect all noma static files under settings.STATIC_ROOT)
 	4.8. Under sera_venv, Run python manage.py runserver (at port 80)
-    4.9 Check NOMA Server is running on runserver (http://<noma_fqdn>/noma)
-	4.10 stop the runserver (ctrl-c)
+	4.9. Check NOMA Server is running on runserver (http://<noma_fqdn>/noma)
+	4.10. stop the runserver (ctrl-c)
 
-5. Setting up gunicorn
+### 5. Setting up gunicorn
    (https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-centos-7)
 
-	5.1 check static_root setting for static files location
-		STATIC_ROOT = os.path.join(BASE_DIR, "static/")
-	5.2 Under sera_venv, Run python manage.py collectstatic to collect all static file into STATIC_ROOT directory
-	5.3 Under sera_venv, install gunicorn (if not alreay in noma_dependencies.txt) 
+	5.1. check static_root setting for static files location
+	     STATIC_ROOT = os.path.join(BASE_DIR, "static/")
+	5.2. Under sera_venv, Run python manage.py collectstatic to collect all static file into STATIC_ROOT directory
+	5.3. Under sera_venv, install gunicorn (if not alreay in noma_dependencies.txt) 
 		$pip install gunicorn
-	5.4 check gunicorn is working
+	5.4. check gunicorn is working
 		$gunicorn --bind 0.0.0.0:80 xna2.wsgi:application 
 		check NOMA is running on gunicorn (http://<noma_fqdn>/noma) (no static)
 		stop gunicorn (ctrl-c)
-	5.6 create gunicorn systemd
+	5.6. create gunicorn systemd
 		nano /etc/systemd/system/gunicorn.service
 
 			[Unit]
@@ -232,7 +230,7 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 		 $systemctl enable gunicorn
 		 $systemctl status gunicorn
 
-6. Setting up Nginx
+### 6. Setting up Nginx
 	6.1 Install Nginx
 		$yum install nginx
 
@@ -274,7 +272,7 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 
 	6.6 check NOMA is running on nginx (http://<noma_fqdn>/noma) 
 
-7. Setting up supervisord for celery -A xna2 worker -l info
+### 7. Setting up supervisord for celery -A xna2 worker -l info
    (https://computingforgeeks.com/configure-celery-supervisord-centos-7-django-virtualenv/)
 
 	7.1 Install Redis
@@ -326,7 +324,8 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 	7.7 To check NOMA Server Task Execution 
 		$tail -f /mnt/sera/logs/celery-worker.log
 		
-8. Setting up NOMA SFTP Server
+
+### 8. Setting up NOMA SFTP Server
 	8.1 Create SFTP Group and User - nomasftp
 		$groupadd sftpgrp
 		$useradd -g sftpgrp nomasftp
