@@ -54,66 +54,67 @@ These instructions will get you a copy of the project up and running on your loc
 
 NOMA can be deployed as cloud-based service. Follow the step-by-step deployment guides below to deploy NOMA on a Linux (CentOS 7) VM.
 
-1. Setting up a Linux VM with Python installed
-	1. Secure a Linux VM (min spec: 4 vCPU, 12GB RAM, 200 GB vDisk) with CentOS 7 image.
-	2. Ensure that the Linux VM has Internet Access and has an IP address that is reachable by the targeted NOMA users.
-	3. Optionally (and preferably), secure a host name for your Linux VM and create the corresponding DNS resolution for it 	
-	4. Mount vDisk volumne at '/mnt' (e.g. mount /dev/vdb /mnt in /etc/fstab)
-	5. Login as root or superuser. 
-	6. Enable Software Collections(SCL)
-	   $sudo yum install centos-release-scl
-	7. Install Python 3.6 on Centos
-	   $sudo yum install rh-python36
-	8. python --version shows default python 2.7.5
-       To access to Python 3.6 for the current session
-       $scl enable rh-python36 bash
-	9. Install Development Toos
-	   $sudo yum groupinstall 'Development Tools'	
+### 1. Setting up a Linux VM with Python installed
+	1.1. Secure a Linux VM (min spec: 4 vCPU, 12GB RAM, 200 GB vDisk) with CentOS 7 image.
+	1.2. Ensure that the Linux VM has Internet Access and has an IP address that is reachable by the targeted NOMA users.
+	1.3. Optionally (and preferably), secure a host name for your Linux VM and create the corresponding DNS resolution for it 	
+	1.4. Mount vDisk volumne at '/mnt' (e.g. mount /dev/vdb /mnt in /etc/fstab)
+	1.5. Login as root or superuser. 
+	1.6. Enable Software Collections(SCL)
+	     $sudo yum install centos-release-scl
+	1.7. Install Python 3.6 on Centos
+	     $sudo yum install rh-python36
+	1.8. python --version shows default python 2.7.5
+         To access to Python 3.6 for the current session
+         $scl enable rh-python36 bash
+	1.9. Install Development Toos
+	     $sudo yum groupinstall 'Development Tools'	
 
-2. Setting up Git Repositiry for your NOMA Project Fork 
-	2.1 Create Project Fork Git Repository at NOMA Server
-		$useradd git
-		$su git
-		$mkdir .ssh
-		$chmod 700 .ssh
-		$touch .ssh/authorized_keys
-		$chmod 600 .ssh/authorized_keys
-		 - paste NOMA Developer's public key to authorized_keys
-		$exit (back to root)
-		$mkdir /mnt/git
-		$mkdir sera
-		$cd /mnt/sera
-		$mkdir xna2.git
-        $cd xna2.git
-		$git init --bare --shared
-	    $chown -R root:git xna2.git
+### 2. Setting up Git Repositiry for your NOMA Project Fork 
+	
+	2.1. Create Project Fork Git Repository at NOMA Server
+		 $useradd git
+		 $su git
+		 $mkdir .ssh
+		 $chmod 700 .ssh
+		 $touch .ssh/authorized_keys
+		 $chmod 600 .ssh/authorized_keys
+		  - paste NOMA Developer's public key to authorized_keys
+		 $exit (back to root)
+		 $mkdir /mnt/git
+		 $mkdir sera
+		 $cd /mnt/sera
+		 $mkdir xna2.git
+         $cd xna2.git
+		 $git init --bare --shared
+	     $chown -R root:git xna2.git
 
-	2.2 Push NOMA project from development pc (please follow Getting Started Guide for setting up the NOMA Developer pc)
-	    Launch git bash
-        $pwd - to check home directory (e.g. Users/username)
-        - Export user's private to OpenSSH key (PuTTYgen -> Conversion -> Export OPenSSH key), save it to HOME\.ssh\id_rsa
-        $cd /c/sera/xna2
-		$git status (commit last changes if needed)
-		$git remote add noma_project_repo git@<NOMA Server IP>:/mnt/git/sera/xna2.git
-		$git push noma_project_repo master
+	2.2. Push NOMA project from development pc (please follow Getting Started Guide for setting up the NOMA Developer pc)
+	     Launch git bash
+         $pwd - to check home directory (e.g. Users/username)
+         - Export user's private to OpenSSH key (PuTTYgen -> Conversion -> Export OPenSSH key), save it to HOME\.ssh\id_rsa
+         $cd /c/sera/xna2
+		 $git status (commit last changes if needed)
+		 $git remote add noma_project_repo git@<NOMA Server IP>:/mnt/git/sera/xna2.git
+		 $git push noma_project_repo master
 
-	2.3 Clone NOMA project to production NOMA Server
-		login to NOMA Server
-		$mkdir /mnt/sera
-		$git clone /mnt/git/sera/xna2.git /mnt/sera/xna2
-		$cd mnt/sera/xna2
-		$ls
-		$git pull
+	2.3. Clone NOMA project to production NOMA Server
+		 login to NOMA Server
+		 $mkdir /mnt/sera
+		 $git clone /mnt/git/sera/xna2.git /mnt/sera/xna2
+		 $cd mnt/sera/xna2
+		 $ls
+		 $git pull
 
-	2.4 disbale git for bash shell
-		$cat /etc/shells # if git-shell not there
-		$which git-shell
-		$nano /etc/shells (add which git-shell to the bottom)
-		$chsh git -s <which git shell>
+	2.4. disbale git for bash shell
+		 $cat /etc/shells # if git-shell not there
+		 $which git-shell
+		 $nano /etc/shells (add which git-shell to the bottom)
+		 $chsh git -s <which git shell>
 
-3. Setting Up MariaDB Server
+### 3. Setting Up MariaDB Server
 
-	3.1 Enable the MariaDB repository. Create a repository file named MariaDB.repo and add the following content:
+	3.1. Enable the MariaDB repository. Create a repository file named MariaDB.repo and add the following content:
 		/etc/yum.repos.d/MariaDB.repo
 		# MariaDB 10.3 CentOS repository list - created 2018-05-25 19:02 UTC
 		# http://downloads.mariadb.org/mariadb/repositories/
