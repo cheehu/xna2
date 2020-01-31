@@ -56,10 +56,11 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 
 ### 1. Setting up a Linux VM with Python installed
 	1.1. Secure a Linux VM (min spec: 4 vCPU, 12GB RAM, 200 GB vDisk) with CentOS 7 image.
-	1.2. Ensure that the Linux VM has Internet Access and has an IP address that is reachable by the targeted NOMA users.
-	1.3. Optionally (and preferably), secure a host name for your Linux VM and create the corresponding DNS resolution for it 	
-	1.4. Mount vDisk volumne at '/mnt' (e.g. mount /dev/vdb /mnt in /etc/fstab)
-	1.5. Login as root or superuser. 
+	1.2. Ensure that the Linux VM has Internet Access and has an IP address that is reachable by the targeted 
+	     NOMA users.
+	1.3. Optionally (and preferably), obtain a host name for your Linux VM and the associated DNS resolution
+	1.4. Login as root or superuser. 
+	1.5. Mount vDisk volumne at '/mnt' (e.g. mount /dev/vdb /mnt in /etc/fstab)
 	1.6. Enable Software Collections(SCL)
 	     $sudo yum install centos-release-scl
 	1.7. Install Python 3.6 on Centos
@@ -79,7 +80,7 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 		$chmod 700 .ssh
 		$touch .ssh/authorized_keys
 		$chmod 600 .ssh/authorized_keys
-			-paste NOMA Developer's public key to authorized_keys
+		 -paste NOMA Developer's public key to authorized_keys
 		$exit (back to root)
 		$mkdir /mnt/git
 		$mkdir sera
@@ -89,10 +90,11 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 		$git init --bare --shared
 		$chown -R root:git xna2.git
 
-	2.2. Push NOMA project from development pc (please follow Getting Started Guide for setting up the NOMA Developer pc)
+	2.2. Push NOMA project from development pc (follow the Getting Started for setting up the NOMA Developer PC)
 		Launch git bash
 		$pwd - to check home directory (e.g. Users/username)
-			-Export user's private to OpenSSH key (PuTTYgen -> Conversion -> Export OPenSSH key), save it to HOME\.ssh\id_rsa
+		 -Export user's private to OpenSSH key (PuTTYgen -> Conversion -> Export OPenSSH key), 
+		  save it to HOME\.ssh\id_rsa
 		$cd /c/sera/xna2
 		$git status (commit last changes if needed)
 		$git remote add noma_project_repo git@<NOMA Server IP>:/mnt/git/sera/xna2.git
