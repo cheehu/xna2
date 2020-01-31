@@ -72,7 +72,6 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 	     $sudo yum groupinstall 'Development Tools'	
 
 ### 2. Setting up Git Repositiry for your NOMA Project Fork 
-	
 	2.1. Create Project Fork Git Repository at NOMA Server
 		$useradd git
 		$su git
@@ -199,19 +198,17 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 	4.9. Check NOMA Server is running on runserver (http://<noma_fqdn>/noma)
 	4.10. stop the runserver (ctrl-c)
 
+
 ### 5. Setting up gunicorn
    (https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-centos-7)
 
-	5.1. check static_root setting for static files location
-	     STATIC_ROOT = os.path.join(BASE_DIR, "static/")
-	5.2. Under sera_venv, Run python manage.py collectstatic to collect all static file into STATIC_ROOT directory
-	5.3. Under sera_venv, install gunicorn (if not alreay in noma_dependencies.txt) 
+	5.1. Under sera_venv, install gunicorn (if not alreay in noma_dependencies.txt) 
 		$pip install gunicorn
-	5.4. check gunicorn is working
+	5.2. check gunicorn is working
 		$gunicorn --bind 0.0.0.0:80 xna2.wsgi:application 
 		check NOMA is running on gunicorn (http://<noma_fqdn>/noma) (no static)
 		stop gunicorn (ctrl-c)
-	5.6. create gunicorn systemd
+	5.3. create gunicorn systemd
 		nano /etc/systemd/system/gunicorn.service
 
 			[Unit]
@@ -227,17 +224,22 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 			[Install]
 			WantedBy=multi-user.target
 
-	5.7. start and enbale gunicorn service
+	5.4. start and enbale gunicorn service
 		 $systemctl start gunicorn
 		 $systemctl enable gunicorn
 		 $systemctl status gunicorn
 
+
 ### 6. Setting up Nginx
-	6.1 Install Nginx
+	6.1. Install Nginx
 		$yum install nginx
 
+	6.2. check static_root setting for static files location
+	     STATIC_ROOT = os.path.join(BASE_DIR, "static/")
+	6.3. Under sera_venv, Run python manage.py collectstatic to collect all static file into STATIC_ROOT directory
 
-	6.2 Modify nginx config file (adding NOMA server)
+
+	6.4. Modify nginx config file (adding NOMA server)
 		nano /etc/nginx/nginx.conf
 
 
@@ -260,35 +262,35 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 			}
 	}
 
-	6.3 add nginx user to root group
+	6.5. add nginx user to root group
 		$usermod -a -G root nginx
 
-	6.4 test nginx 
+	6.6. test nginx 
 		$nginx -t
 
-	6.5 start and enbale nginx
+	6.7. start and enbale nginx
 		$systemctl start nginx
 		$systemctl enable nginx
 		$systemctl status nginx
 
+	6.8. check NOMA is running on nginx (http://<noma_fqdn>/noma) 
 
-	6.6 check NOMA is running on nginx (http://<noma_fqdn>/noma) 
 
 ### 7. Setting up supervisord for celery -A xna2 worker -l info
    (https://computingforgeeks.com/configure-celery-supervisord-centos-7-django-virtualenv/)
 
-	7.1 Install Redis
+	7.1. Install Redis
 		$yum install redis
 		$systemctl start redis
 		$systemctl enable redis
 	
-	7.2 Verify that Redis is running with redis-cli:
+	7.2. Verify that Redis is running with redis-cli:
 		$redis-cli ping
 
-	7.3 Install supervisod
+	7.3. Install supervisod
 		$yum install supervisor
 
-	7.4 create celery config file for xna2
+	7.4. create celery config file for xna2
 		$nano /etc/supervisord.d/xna2.ini
 
 			[program:xna2]
@@ -316,23 +318,23 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 			priority=998
 
 
-	7.5 Start supervisor
+	7.5. Start supervisor
 		$systemctl start supervisord
 
-	7.6 check & restart supervor for xna2 
+	7.6. check & restart supervor for xna2 
 		$supervisorctl status xna2
 		$supervisorctl restart xna2
 
-	7.7 To check NOMA Server Task Execution 
+	7.7. To check NOMA Server Task Execution 
 		$tail -f /mnt/sera/logs/celery-worker.log
 		
 
 ### 8. Setting up NOMA SFTP Server
-	8.1 Create SFTP Group and User - nomasftp
+	8.1. Create SFTP Group and User - nomasftp
 		$groupadd sftpgrp
 		$useradd -g sftpgrp nomasftp
 
-	8.2 Create SFTP Directory for user nomasftp
+	8.2. Create SFTP Directory for user nomasftp
 		$mkdir /mnt/noma/sftp/nomasftp mkdir /mnt/noma/sftp/nomasftp
 		$mkdir /mnt/noma/sftp/nomasftp/.ssh
 		$mkdir /mnt/noma/sftp/nomasftp/uploads
@@ -343,7 +345,7 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 		$chmod 700 /mnt/noma/sftp/nomasftp/downloads
 		$chmod 700 /mnt/noma/sftp/nomasftp/.ssh
 
-	8.3 Modify sshd_config
+	8.3. Modify sshd_config
 		$nona /etc/ssh/sshd_config
 
 			Match Group sftpgrp
@@ -353,13 +355,13 @@ NOMA can be deployed as cloud-based service. Follow the step-by-step deployment 
 
 	    $ststemctl restart sshd
 
-	8.4 paste user's public key into .ssh/authorized_keys
+	8.4. paste user's public key into .ssh/authorized_keys
 		$nano /mnt/noma/sftp/nomasftp/.ssh/authorized_keys
 		$chmod 700 /mnt/noma/sftp/nomasftp/.ssh/authorized_keys
 
-	8.5 Ask NOMA users to connect to NOMA SFTP server using winSCP with their own private keys
+	8.5. Ask NOMA users to connect to NOMA SFTP server using winSCP with their own private keys
 
-	8.6 Add second tenant:
+	8.6. Add second tenant:
 		$useradd -g sftpgrp nomasftp1
 		$mkdir /mnt/noma/sftp/nomasftp1
 		$mkdir /mnt/noma/sftp/nomasftp1/.ssh
