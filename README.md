@@ -24,7 +24,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Installing
 
-	8. Git clone github.com/ckhu2020/xna2
+	8. Git clone github.com/cheehu/noma
 	9. Install virtualenv (py -m pip install --user virtualenv)
 	10. Create virtual environment named sera_venv in folder pyenvs/sera/
 	11. Activate virtual environment sera_venv (pyvenvs/sera/sera_venv/Scripts/activate)

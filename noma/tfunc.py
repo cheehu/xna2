@@ -792,7 +792,7 @@ def q_mstr(ma, fd):
 def q_mmls(xdbx, stbl, mc, md, mm, tag1, tag2):
     with connections[xdbx].cursor() as cursor:
         cursor.execute("SHOW COLUMNS FROM %s" % stbl)
-    sqlc = q_comp(stbl,tag1,tag2)
+    sqlc = q_comp(xdbx,stbl,tag1,tag2)
     cps = "ckey_0,%s,act" % ','.join(cn[0][2:] for cn in cursor if cn[0][:2] == 'c_')
     sql1 = "SELECT %s,\nconcat(%s) mml\nFROM (%s) v3\nWHERE act = 'MODIFY'" % (cps,q_mstr(mm,cps), sqlc)
     sql2 = "SELECT %s,\nif(act='CREATE', concat(%s), concat(%s)) mml\nFROM (%s) v3\n" \
