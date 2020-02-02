@@ -12,24 +12,34 @@ savenoma = 0
 
 nf01 = NomaFunc.objects.get(epr='dumm')
 
-#[nTAS Licence CLS]
-sdir = pathlib.Path('C:/XNA/data/nomasftp/uploads/VFG/nTAS')
-ldir = pathlib.Path('C:/XNA/data/nomasftp/downloads')
-sf = sdir / 'TS42_0115p.xml'
-tf = ldir / 'ntas_test_01.tsv'
+#[Cisco Interface]
+sdir = pathlib.Path('C:/XNA/data/nomasftp/uploads/demo')
+ldir = pathlib.Path('C:/XNA/data/nomasftp/downloads/demo/logging')
+sf = sdir / 'Cisco CS-01.log'
+tf = ldir / 'demo_test.tsv'
 
-gtag = 'NTAS_v01'
+gtag = 'demo_cis'
 ttype = 'tx'
-tname='ntas_lic_cls'
-sepr=r'<cls:cls>'
-eepr=r'</cls:cls>'
-depr=r'</*>'
-xtag=r'c,ntas:license-management,cls:cls/,cls:cls'
+tname='cisco_intf'
+sepr=r'!\r\ninterface\s'
+eepr=r'!\r\n(?!interface)'
+depr=r'!\ninterface\s'
+xtag=None
 cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr,xtag=xtag)
 if savenoma == 1: cs.save()
 acts = []
-acts.append(sa(set=cs,seq=1,spos=0,sepr=r':feature-code>',eepr=r'</',fname='fea',xtag=r'v,feature-info:feature-code',fchar=r'VARCHAR(10)'))
-acts.append(sa(set=cs,seq=2,spos=0,sepr=r':administrative-state>',eepr=r'</',fname='sta',xtag=r'v,feature-info:administrative-state',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=1,spos=0,eepr=r'\n',fname='intf',fchar=r'VARCHAR(50)'))
+acts.append(sa(set=cs,seq=2,spos=0,sepr=r'\n\s(?=switchport\n)',eepr=r'\n',fname='ptyp',fchar=r'VARCHAR(20)'))
+acts.append(sa(set=cs,seq=3,spos=0,sepr=r'\n\sswi.+mode\s',eepr=r'\n',fname='mode',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=4,spos=0,sepr=r'\n\sswi.+(?=nonego)',eepr=r'\n',fname='dtp',fchar=r'VARCHAR(20)'))
+acts.append(sa(set=cs,seq=5,spos=0,sepr=r'\n\s.+a(ll|cc).+vlan\s',eepr=r'\n',fname='vlan',fchar=r'VARCHAR(200)'))
+acts.append(sa(set=cs,seq=6,spos=0,sepr=r'\n\s.+encap.+?\s',eepr=r'\n',fname='encap',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=7,spos=0,sepr=r'\n\s(.*?)ip address',eepr=r'\n',fname='ipaddr',fchar=r'VARCHAR(50)'))
+acts.append(sa(set=cs,seq=8,spos=0,sepr=r'\n\s(?=shutdown)',eepr=r'\n',fname='sta',fchar=r'VARCHAR(20)'))
+acts.append(sa(set=cs,seq=9,spos=0,sepr=r'\n\speed',eepr=r'\n',fname='speed',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=10,spos=0,sepr=r'\n\duplex',eepr=r'\n',fname='dup',fchar=r'VARCHAR(10)'))
+acts.append(sa(set=cs,seq=11,spos=0,sepr=r'\n\smls qos',eepr=r'\n',fname='mlsqos',fchar=r'VARCHAR(30)'))
+acts.append(sa(set=cs,seq=13,spos=0,sepr=r'\n\sdesc.+?\s',eepr=r'\n',fname='descr',fchar=r'VARCHAR(100)'))
 
 
 #tfunc=nf04,nepr=r'val,"ON","true","false"',
