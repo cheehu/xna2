@@ -171,6 +171,7 @@ def getJRecords(s, srt_txt):
 def getJFields(records, acts, vs, outf):
     for rec in records:
         radd = True
+        varr = [[] for y in range(10)]
         vals = list(vs)
         for idx, act in enumerate(acts):
             val = rec
@@ -179,15 +180,14 @@ def getJFields(records, acts, vs, outf):
                 for key in keys:
                     val = val[key]
             else:
-                md = next((dic for dic in rec if dic[keys[0]] == keys[1]), '')
+                crec = varr[act.varr][0] if act.xtag == '_r_varr' else rec
+                md = next((dic for dic in crec if dic[keys[0]] == keys[1]), '')
                 val = md[act.eepr] if md else ''
             if act.nepr == 't':
                 getJFields(val,acts[idx+1:],vals,outf)
                 break
-            elif act.nepr == 'd':
-                getJFields([val],acts[idx+1:],vals,outf)
-                break
             else:
+                if act.varr != None and act.xtag != '_r_varr': varr[act.varr].append(val)
                 if act.fname: vals.append(val)
                 if act.fepr != None:
                     radd = re.search(act.fepr, val)
