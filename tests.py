@@ -12,34 +12,31 @@ savenoma = 0
 
 nf01 = NomaFunc.objects.get(epr='dumm')
 
-#[Cisco Interface]
-sdir = pathlib.Path('C:/XNA/data/nomasftp/uploads/demo')
-ldir = pathlib.Path('C:/XNA/data/nomasftp/downloads/demo/logging')
-sf = sdir / 'Cisco CS-01.log'
-tf = ldir / 'demo_test.tsv'
+#[Kube Nodes]
+sdir = pathlib.Path('C:/XNA/data/nomasftp/uploads/kube')
+ldir = pathlib.Path('C:/XNA/data/nomasftp/downloads/kube/logging')
+sf = sdir / 'nef_get_nodes.json'
+tf = ldir / 'kube_get.tsv'
 
-gtag = 'demo_cis'
-ttype = 'tx'
-tname='cisco_intf'
-sepr=r'!\r\ninterface\s'
-eepr=r'!\r\n(?!interface)'
-depr=r'!\ninterface\s'
+gtag = 'kube_nodes_v00'
+ttype = 'js'
+tname='kube_nodes'
+sepr=r'items'
+eepr=None
+depr=None
 xtag=None
 cs = NomaSet(name=tname, type=ttype, sepr=sepr, eepr=eepr, depr=depr,xtag=xtag)
 if savenoma == 1: cs.save()
 acts = []
-acts.append(sa(set=cs,seq=1,spos=0,eepr=r'\n',fname='intf',fchar=r'VARCHAR(50)'))
-acts.append(sa(set=cs,seq=2,spos=0,sepr=r'\n\s(?=switchport\n)',eepr=r'\n',fname='ptyp',fchar=r'VARCHAR(20)'))
-acts.append(sa(set=cs,seq=3,spos=0,sepr=r'\n\sswi.+mode\s',eepr=r'\n',fname='mode',fchar=r'VARCHAR(10)'))
-acts.append(sa(set=cs,seq=4,spos=0,sepr=r'\n\sswi.+(?=nonego)',eepr=r'\n',fname='dtp',fchar=r'VARCHAR(20)'))
-acts.append(sa(set=cs,seq=5,spos=0,sepr=r'\n\s.+a(ll|cc).+vlan\s',eepr=r'\n',fname='vlan',fchar=r'VARCHAR(200)'))
-acts.append(sa(set=cs,seq=6,spos=0,sepr=r'\n\s.+encap.+?\s',eepr=r'\n',fname='encap',fchar=r'VARCHAR(30)'))
-acts.append(sa(set=cs,seq=7,spos=0,sepr=r'\n\s(.*?)ip address',eepr=r'\n',fname='ipaddr',fchar=r'VARCHAR(50)'))
-acts.append(sa(set=cs,seq=8,spos=0,sepr=r'\n\s(?=shutdown)',eepr=r'\n',fname='sta',fchar=r'VARCHAR(20)'))
-acts.append(sa(set=cs,seq=9,spos=0,sepr=r'\n\speed',eepr=r'\n',fname='speed',fchar=r'VARCHAR(10)'))
-acts.append(sa(set=cs,seq=10,spos=0,sepr=r'\n\duplex',eepr=r'\n',fname='dup',fchar=r'VARCHAR(10)'))
-acts.append(sa(set=cs,seq=11,spos=0,sepr=r'\n\smls qos',eepr=r'\n',fname='mlsqos',fchar=r'VARCHAR(30)'))
-acts.append(sa(set=cs,seq=13,spos=0,sepr=r'\n\sdesc.+?\s',eepr=r'\n',fname='descr',fchar=r'VARCHAR(100)'))
+acts.append(sa(set=cs,seq=1,spos=0,epos=0,sepr='metadata.name',fname='nname'))
+acts.append(sa(set=cs,seq=2,spos=0,epos=0,sepr='status.nodeInfo.containerRuntimeVersion',fname='dver'))
+acts.append(sa(set=cs,seq=3,spos=0,epos=0,sepr='status.nodeInfo.kernelVersion',fname='kver'))
+acts.append(sa(set=cs,seq=4,spos=0,epos=0,sepr='status.nodeInfo.osImage',fname='osimg'))
+acts.append(sa(set=cs,seq=5,spos=0,epos=0,sepr='status.nodeInfo.kubeletVersion',fname='kuver'))
+acts.append(sa(set=cs,seq=6,spos=0,epos=0,sepr='status.addresses',nepr='d'))
+acts.append(sa(set=cs,seq=7,spos=0,epos=0,sepr='type.InternalIP',eepr=r'address',fname='i_ip'))
+acts.append(sa(set=cs,seq=8,spos=0,epos=0,sepr='type.ExternalIP',eepr=r'address',fname='e_ip'))
+
 
 
 #tfunc=nf04,nepr=r'val,"ON","true","false"',

@@ -1,8 +1,10 @@
 [settings]
 SECRET_KEY=dmd@a87h54$$
-ALLOWED_HOSTS=.localhost, 127.0.0.1, 10.164.196.144
+ALLOWED_HOSTS=.localhost, 127.0.0.1
 DEBUG=False
+DB_NAME=nomadb
+XDB_NAME=xnaxdr
 DB_USER=root
 DB_PASSWORD=1234
-OUT_DIR=/mnt/noma/sftp/nomasftp/uploads
-IN_DIR=/mnt/noma/sftp/nomasftp/downloads
+OUT_DIR=/mnt/noma/sftp
+IN_DIR=/mnt/noma/sftp

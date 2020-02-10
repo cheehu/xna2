@@ -179,10 +179,13 @@ def getJFields(records, acts, vs, outf):
                 for key in keys:
                     val = val[key]
             else:
-                val = next((dic for dic in rec if dic[keys[0]] == keys[1]), '')[act.eepr]
-            if act.nepr != None:
-                if val != None:
-                    getJFields(val,acts[idx+1:],vals,outf)
+                md = next((dic for dic in rec if dic[keys[0]] == keys[1]), '')
+                val = md[act.eepr] if md else ''
+            if act.nepr == 't':
+                getJFields(val,acts[idx+1:],vals,outf)
+                break
+            elif act.nepr == 'd':
+                getJFields([val],acts[idx+1:],vals,outf)
                 break
             else:
                 if act.fname: vals.append(val)
@@ -191,6 +194,7 @@ def getJFields(records, acts, vs, outf):
                     if not radd: break
         if radd and act.nepr == None:
             outf.write('%s\n' % '\t'.join(va for va in vals))
+            
 
 def getBRecords(s, sa):
     sp, ef, n1, n2 = int(sa[1]), int(sa[2]), 0, 0 
@@ -332,7 +336,8 @@ def nomaMain(sf, tf, set, acts, smap, gtag, xlobj, xdbx):
         res = getJRecords(jf, set.sepr)
         if res[:8] != 'Error!!!':
             with open(tf, 'w') as fw:
-                getJFields(res, acts, [], fw)
+                iniv = [] if gtag == None else [gtag]
+                getJFields(res, acts, iniv, fw)
             res = "Successfully Executed " + set.name
     elif set.type == 'bi':
         sfa = ['',0,0,'','']

@@ -12,23 +12,23 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-	1. Install Notepad++, add NppExec plugin
-	2. Install Mariadb & HeidiSQL
+	1. Install Notepad++, use plugin admin to add NppExec (0.6)
+	2. Install Mariadb (tested on 10.4 x64)  & HeidiSQL (included in MariaDB package)
 	3. Create Database nomadb & xnaxdr (for multi-tenent create nomadb1 & xnaxdr1)
-	4. Install Python 3.6.3
+	4. Install Python 3.6.3 (tetsted on this release)
 	5. Upgrade pip (py -m pip install --upgrade pip)
-	6. install redis (Redis-x64-3.2.100.msi) for Windows (run as service)
-	   https://github.com/MicrosoftArchive/redis/releases
-	7. Install Git (git-scm.com)
+	6. install redis (Redis-x64-3.2.100.msi) for Windows (run as service) 
+	   https://github.com/MicrosoftArchive/redis/releases (use all default settings)
+	7. Install Git (git-scm.com: Git-2.25.0-64-bit) 
 
 
 ### Installing
 
-	8. Git clone github.com/cheehu/noma
+	8. Please use PowerShell for all CLI. Create project folder c:/sera, launch Git Bash, cd /c/sera, git clone https://github.com/cheehu/noma.git
 	9. Install virtualenv (py -m pip install --user virtualenv)
-	10. Create virtual environment named sera_venv in folder pyenvs/sera/
-	11. Activate virtual environment sera_venv (pyvenvs/sera/sera_venv/Scripts/activate)
-	12. cd to /sera/xna2, run pip install -r noma_dependencies.xtx
+	10. Create python venv folder named pyvenvs/sera, cd /pyenvs/sera, create virtual environment named sera_venv (python -m venv sera_venv)
+	11. Activate virtual environment sera_venv (./pyvenvs/sera/sera_venv/Scripts/activate)
+	12. cd to /sera/xna2, run pip install -r noma_dependencies.txt
 	13. To execute NOMA scripts in Notepad++, add in NppExec Execute...
 	    cmd /k C:\pyvenvs\sera\sera_venv\Scripts\activate & python "$(FILE_NAME)" & deactivate & exit
 	14. Download dash_pivottable from https://github.com/xhlulu/dash_pivottable. Copy dash_pivottable folder to 
