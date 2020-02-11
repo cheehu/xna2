@@ -178,17 +178,23 @@ def getJFields(records, acts, vs, outf):
             keys = act.sepr.split('.')
             if act.eepr == None:
                 for key in keys:
-                    val = val[key]
+                    if key in val: val = val[key]
+                    else: 
+                        val = ''
+                        break
             else:
                 crec = varr[act.varr][0] if act.xtag == '_r_varr' else rec
                 md = next((dic for dic in crec if dic[keys[0]] == keys[1]), '')
                 val = md[act.eepr] if md else ''
+            if act.tfunc != None:
+                tfun = 'noma.tfunc.%s(%s)' % (act.tfunc, act.nepr)
+                val = eval(tfun) 
             if act.nepr == 't':
                 getJFields(val,acts[idx+1:],vals,outf)
                 break
             else:
                 if act.varr != None and act.xtag != '_r_varr': varr[act.varr].append(val)
-                if act.fname: vals.append(val)
+                if act.fname: vals.append(str(val))
                 if act.fepr != None:
                     radd = re.search(act.fepr, val)
                     if not radd: break
