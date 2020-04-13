@@ -1,6 +1,6 @@
 import os, pathlib, zipfile, pandas as pd
 from django.db import connection, connections
-import re, mmap, json, codecs, traceback
+import re, mmap, json, yaml, traceback
 from django.conf import settings
 import noma.tfunc
 from .models import NomaGrp, NomaSet, NomaGrpSet, NomaSetAct
@@ -22,6 +22,17 @@ def dirzip(spath):
             zip_ref.extractall(tdir)
         return tdir
     return sdir
+    
+def noma_jtrim(eepr, val):
+    fs, fe = None, None
+    sp = eepr.split(':')
+    if sp[0] != '':
+        m = re.search(sp[0], val)
+        if m != None: fs = m.end()
+    if sp[1] != '':
+        m = re.search(sp[1], val) 
+        if m != None: fe = m.start()
+    return val[fs:fe] 
  
 
 def nomaInfo(nomagrp, id, nomaset):
@@ -115,7 +126,7 @@ def getRecords(s, srt_txt, end_txt):
            
     return cmdP
         
-def getFields(po, sep, acts, vs, outf, smap):
+def getFields(po, sep, acts, vs, outf, smap, sf):
     records = re.split(sep, po)
     rno = 0
     for rec in records:
@@ -154,51 +165,64 @@ def getFields(po, sep, acts, vs, outf, smap):
                 else: skipf = act.skipf
             else:
                 if act.varr != None: val = varr[act.varr][0]
-                getFields(val,nepr,acts[idx+1:],vals,outf,smap)
+                getFields(val,nepr,acts[idx+1:],vals,outf,smap,sf)
                 break
         rno += 1
         if radd and nepr == None:
             outf.write('%s\n' % '\t'.join(va for va in vals))
 
             
-def getJRecords(s, srt_txt):
+def getJRecords(s, d_txt, srt_txt, end_txt):
+    if srt_txt == None: srt_txt = '^\A'
+    if end_txt == None: end_txt = '\Z'
     cmdP = 'Error!!! : Start text: %s not found' % srt_txt
-    m = s[srt_txt]
+    cmdS, cmdE = re.compile(srt_txt.encode()), re.compile(end_txt.encode())
+    m = cmdS.search(s)
     if m != None:
-        cmdP = m
+        cmdP = 'Error!!! : End text: %s not found' % end_txt
+        n = cmdE.search(s, m.end())
+        if n != None:
+            bs = s[m.end():n.start()]
+            jo = json.loads(bs) if bs[0] == 123 else yaml.safe_load(bs)
+            cmdP = 'Error!!! : delimiter text: %s not found' % d_txt
+            for k in d_txt.split('.'): jo = jo[k]
+            if jo != None: cmdP = jo
+            
     return cmdP
 
 def getJFields(records, acts, vs, outf):
+    isdic = True if isinstance(records, dict) else False
+    rno = 0
     for rec in records:
         radd = True
         varr = [[] for y in range(10)]
         vals = list(vs)
         for idx, act in enumerate(acts):
             val = rec
-            keys = act.sepr.split('.')
-            if act.eepr == None:
+            if act.sepr != None:
+                if isdic: val = records[rec]
+                keys = act.sepr.split('.')
                 for key in keys:
                     if key in val: val = val[key]
                     else: 
                         val = ''
                         break
-            else:
-                crec = varr[act.varr][0] if act.xtag == '_r_varr' else rec
-                md = next((dic for dic in crec if dic[keys[0]] == keys[1]), '')
-                val = md[act.eepr] if md else ''
             if act.tfunc != None:
                 tfun = 'noma.tfunc.%s(%s)' % (act.tfunc, act.nepr)
                 val = eval(tfun) 
-            if act.nepr == 't':
+            if act.eepr != None: val = noma_jtrim(act.eepr, val)
+            if act.nepr == '__t':
+                if act.varr != None: val = varr[act.varr][0]
                 getJFields(val,acts[idx+1:],vals,outf)
                 break
             else:
-                if act.varr != None and act.xtag != '_r_varr': varr[act.varr].append(val)
+                if act.varr != None : varr[act.varr].append(val)
                 if act.fname: vals.append(str(val))
                 if act.fepr != None:
                     radd = re.search(act.fepr, val)
                     if not radd: break
-        if radd and act.nepr == None:
+        rno += 1
+        if radd and act.nepr != '__t':
             outf.write('%s\n' % '\t'.join(va for va in vals))
             
 
@@ -334,13 +358,12 @@ def nomaMain(sf, tf, set, acts, smap, gtag, xlobj, xdbx):
             with open(tf, 'r+', newline='') as fw:
                 fw.truncate()
                 iniv = [] if gtag == None else [gtag]
-                getFields(res, set.depr, acts, iniv, fw, smap)
+                getFields(res, set.depr, acts, iniv, fw, smap, sf)
             res = "Successfully Executed " + set.name 
     elif set.type == 'js':
-        with codecs.open(sf, 'r', 'utf-8') as s:
-            jf = json.load(s)
-        res = getJRecords(jf, set.sepr)
-        if res[:8] != 'Error!!!':
+        with open(sf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
+            res = getJRecords(s, set.depr, set.sepr, set.eepr)
+        if not isinstance(res, str):
             with open(tf, 'w') as fw:
                 iniv = [] if gtag == None else [gtag]
                 getJFields(res, acts, iniv, fw)

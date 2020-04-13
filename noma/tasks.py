@@ -116,19 +116,18 @@ def nomaQExe(id, total_count, ngrp):
     tfile = ldir / grp.tfile
     writer = pd.ExcelWriter(tfile, engine='xlsxwriter')
     workbook = writer.book
-    format_hdr = workbook.add_format({'bold': True, 'fg_color': '#D7E4BC'})
+    format_hdr = workbook.add_format({'bold': True, 'fg_color': '#C0C0C0'})
     format_title = workbook.add_format({'bold': True, 'fg_color': '#00FFFF', 'font_size':14})
     format_comp = workbook.add_format({'bold': True, 'fg_color': '#FFFF00'})
+    format_grp = workbook.add_format({'fg_color': '#D7E4BC'})
     Indexsheet = workbook.add_worksheet('Index')
     gpars = '(%s)' % ','.join(p for p in grp.gpar.split(',') if p != '' and p[:2] != '__')
-    Indexsheet.write(0,0, '%s %s' % (grp.name, '' if gpars == '()' else gpars), format_title)
-    Indexsheet.write(0,1, '', format_title)
-    Indexsheet.set_column(0, 0, 3)
-    Indexsheet.set_column(1, 1, 80)
     f=open(ldir / (grp.name + '.log'), "w+")
     f.write("Executing Que Group: %s Output to DIR: %s\n\n" % (grp, ldir))
     i, j = 0, 0
     xdg = {p.split('=')[0][2:]: p.split('=')[1] for p in grp.gpar.split(',') if p[:2] == '__'}
+    idxcoln = ['Group','Table','Rec#'] + xdg['xcoln'].split('&') if 'xcoln' in xdg else ['Group','Table','Rec#','']
+    for c, clen in enumerate([30,60,8,15]): Indexsheet.set_column(c, c, clen)
     dashf = '%s' % tfile if 'xdash' in xdg else None
     if 'xroot' in xdg:
         doc = ET.Element(xdg['xroot'])
@@ -140,23 +139,22 @@ def nomaQExe(id, total_count, ngrp):
         set = queSet.objects.get(name=grpset.set)
         f.write("Executing Query Set: %s\n" % set.name)
         spars = '(%s)' % ','.join(p for p in grpset.spar.split(',') if p != '' and p[:2] != '__')
-        Indexsheet.write(j+1,0, '%s %s' % (set.name, '' if spars == '()' else spars), format_hdr)
-        Indexsheet.write(j+1,1, '', format_hdr)
         f.write("   NOMA Queries Sequences:\n")
         if doc != None:
             xds = {p.split('=')[0][2:]: p.split('=')[1] for p in grpset.spar.split(',') if p[:7] == '__xmlns'}
             for k, v in xds.items(): doc.set(k,v)
         for sq in set.Sqls.all():
             i += 1
-            j += 1
             ps = "'%s','%s',%s,%s,%s" % (xdbx,sq.stbl,sq.qpar,grpset.spar,grp.gpar)
             pars = '(%s)' % ','.join(p for p in ps.split(',') if p != '' and p[:2] != '__')
             f.write("       %s  -  %s  -   %s%s\n" % (sq.seq, sq.name, sq.qfunc, pars))
             hl = 'internal:%s!A1' % sq.name
             qpars = '(%s)' % ','.join(p for p in sq.qpar.split(',') if p != '' and p[:2] != '__')
-            Indexsheet.write_url(j+1,1, hl, string='%s %s' % (sq.name,'' if qpars == '()' else qpars))
+            if (j % 2) == 0: Indexsheet.write(i+1,0, '%s %s' % (set.name, '' if spars == '()' else spars),format_grp)
+            else: Indexsheet.write(i+1,0, '%s %s' % (set.name, '' if spars == '()' else spars))
+            Indexsheet.write_url(i+1,1, hl, string='%s %s' % (sq.name,'' if qpars == '()' else qpars))
             dpars = re.search('__dash=(.+)(,|$)',sq.qpar)
-            if dpars: Indexsheet.write(j+1,4,dpars[1])
+            if dpars: Indexsheet.write(i+1,4,dpars[1])
             qfun = 'noma.tfunc.%s%s' % (sq.qfunc, pars)
             try:
                 sqlq = eval(qfun) 
@@ -165,10 +163,12 @@ def nomaQExe(id, total_count, ngrp):
                         cursor.execute(sqlq)
                 else: 
                     df = pd.read_sql_query(sqlq, connections[xdbx])
-                    Indexsheet.write(j+1,2, len(df))
+                    Indexsheet.write(i+1,2, len(df))
+                    cds = {p.split('=')[0][5:]: p.split('=')[1] for p in sq.qpar.split(',') if p[:5] == '__col'}
+                    for c in cds: Indexsheet.write(i+1,2+int(c),cds[c])
                     if '_comp_' in df.columns.values:
                         if any('<>' in s for s in df['_comp_'].values):
-                            Indexsheet.write(j+1,3, 'Data Different!!!', format_comp)
+                            Indexsheet.write(i+1,len(idxcoln)-1, 'Data Different!!!', format_comp)
                     excelout(df,writer,workbook,sq.name,ldir,tfile.name.split('.')[0])
                     if str(sq.qfunc) == 'q_basic' and doc != None:
                         cd = re.search('gtag="(.+?)"',sqlq)
@@ -205,8 +205,12 @@ def nomaQExe(id, total_count, ngrp):
                 sta = 'Error occurs at %s -- ' % sq.name
                 current_task.update_state(state='FAILURE', meta={'status': sta, 'info': info})
                 return {'status': sta, 'info': info}
-        
         f.write("\n")
+    for cnum, value in enumerate(idxcoln): Indexsheet.write(1, cnum, value, format_hdr)
+    Indexsheet.autofilter(1,0,1,len(idxcoln)-1)
+    Indexsheet.freeze_panes(2, 0)
+    Indexsheet.write(0,0, '%s %s' % (grp.name, '' if gpars == '()' else gpars), format_title)
+    Indexsheet.write(0,1, '', format_title)
     writer.save()
     f.close()
     if doc != None and len(doc) > 0: 
@@ -296,6 +300,8 @@ def excelout(df,writer,workbook,sqn,ldir,tfile):
     worksheet = writer.sheets[sqn]
     worksheet.conditional_format(1,0,len(df.index),len(df.columns)-1,{'type':'text','criteria':'containing','value':':##','format':format_add})
     worksheet.conditional_format(1,0,len(df.index),len(df.columns)-1,{'type':'text','criteria':'containing','value':'##:','format':format_del})
+    worksheet.conditional_format(1,0,len(df.index),len(df.columns)-1,{'type':'text','criteria':'containing','value':'<>null','format':format_add})
+    worksheet.conditional_format(1,0,len(df.index),len(df.columns)-1,{'type':'text','criteria':'containing','value':'null<>','format':format_del})
     worksheet.conditional_format(1,0,len(df.index),len(df.columns)-1,{'type':'text','criteria':'containing','value':'<>','format':format_mod})
     worksheet.conditional_format(1,0,len(df.index),len(df.columns)-1,{'type':'formula','criteria':'=LEFT($A2,1)="*"','format':format_ref})
     worksheet.write_url(0,0, 'internal:Index!A1')

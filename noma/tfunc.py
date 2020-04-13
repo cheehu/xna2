@@ -1,5 +1,5 @@
 from datetime import datetime
-import codecs, re, csv, pandas as pd
+import codecs, re, pathlib, mmap, csv, pandas as pd
 from django.db import connection, connections
 from .middleware import get_current_ngrp
 #from .forms import XDBX
@@ -92,6 +92,9 @@ def to_hdl(bv,s, l, hd):
 
 def i_var(iv):
     return str(iv)
+
+def i_varr(iv):
+    return (iv)
     
 def i_vara(iv,dl):
     return dl.join(str(v) for v in iv)
@@ -657,8 +660,54 @@ def d_expand(d):
         else: g.append(k)
     return g
     
-
+def json_list(crec,colk,colv,vkey):
+    md = next((dic for dic in crec if dic[colk] == colv), '')
+    va = md[vkey] if md else ''
+    return va
     
+def json_dict(dl,col):
+    va = ','.join(d[col] for d in dl if col in d)
+    return va
+
+def json_vald(vald,key):
+    cv = vald[key] if key in vald else ''
+    return cv
+    
+def merge_dl(dl):
+    dd = {k:d[k] for d in dl for k in d}   
+    return dd
+    
+def merge_dl2(dl,kl):
+    dd = ','.join(':'.join(str(d[k]) for k in kl) for d in dl)    
+    return dd
+    
+def str_cap(epr, osp, nsp=''):
+    return nsp.join(s.capitalize() for s in epr.split(osp))
+    
+def get_nested(sf, fn, srt_txt, end_txt):
+    nf = sf.parent / fn
+    tf = sf.parent / "temp__out__"
+    cmdP = 'Error!!!'
+    cmdS, cmdE = re.compile(srt_txt.encode()), re.compile(end_txt.encode())
+    with open(nf, 'rUb') as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as s:
+        m = cmdS.search(s)
+        if m != None:
+            cmdP = 'Error: End_Txt not found'
+            n = cmdE.search(s, m.end())
+            if n != None: 
+                cmdP = s[m.end():n.start()]
+                with open(tf, 'w+b') as fw:            
+                    fw.write(cmdP)
+                with open(tf, 'r+', encoding='cp1252') as fw:
+                    cmdP = fw.read()
+    return cmdP
+    
+def merge_recs(va, sp):
+    rsa = [v.split(sp) for v in va]
+    mc = '\n'.join('|'.join(rs[i] for rs in rsa) for i, r in enumerate(rsa[0]))
+    return mc
+    
+
 def q_basic(xdbx, stbl, flds=['*'], cond=''):
     if flds[0] == '*': 
         if len(flds) > 1:
@@ -907,4 +956,66 @@ join (%(v3)s) v2 on v1.ana%(m)s = v2.subname' % {"ec":ec[:-n*9],"m":n+1, "q":sql
     sqlq += '\nORDER BY %s' % ob  
     
     return sqlq
+    
+def q_subana_o(xdbx,stb1,atyp,maxd=8,flds=['*'], gtag=''):
+    stb2 = 'mss_attr_val'
+    stb3 = 'mss_attr_st'
+    atp = 'aif' if atyp in ['MTC', 'MOC'] else atyp 
+    rtbl = 'otas_aar_epa' if atyp == 'EPA' else 'mss_ares_%s' % atp.lower()
+    c1 = '"SUB" and atyp = "%s" and %s' % (atyp,gtag)
+    c2 = 't1.atyp = "%s" and t1.%s' % (atyp,gtag)
+    c3 = '"FIN" and atyp = "%s" and %s' % (atyp,gtag)
+    v2 = 'select subname, attr, "*DEF" val, dres ana from %(stb1)s where dtyp = %(c1)s\n\
+union select subname, attr, "*UNK" val, ures ana from %(stb1)s where utyp = %(c1)s\n\
+union (select t1.subname, t2.attr, t1.aval val, t1.res ana from %(stb2)s t1\n\
+join %(stb1)s t2 on t1.gtag = t2.gtag and t1.atyp = t2.atyp and t1.subname = t2.subname\n\
+where t1.rtyp = "SUB" and %(c2)s)' % {"c1":c1, "c2":c2, "stb1":stb1,"stb2":stb2} 
+    v1 = 'select concat(if(t1.epcn="","",concat(t1.epcn,"-")),t1.subname) ana1, v1.attr attr1, v1.val val1, v1.ana ana2 from %(stb3)s t1\n\
+join (%(v2)s) v1 on t1.subname = v1.subname where %(c2)s' % {"c2":c2, "stb3":stb3, "v2":v2}
+    v3 = 'select subname, attr, "*DEF" val, dres res from %(stb1)s where dtyp = %(c3)s\n\
+union select subname, attr, "*UNK" val, ures res from %(stb1)s where utyp = %(c3)s\n\
+union (select t1.subname, t2.attr, t1.aval val, t1.res res from %(stb2)s t1\n\
+join %(stb1)s t2 on t1.gtag = t2.gtag and t1.atyp = t2.atyp and t1.subname = t2.subname\n\
+where t1.rtyp = "FIN" and %(c2)s)' % {"c3":c3, "c2":c2, "stb1":stb1,"stb2":stb2}
+    v4 = 'select * from %s where %s' % (rtbl, gtag) 
+    with connections[xdbx].cursor() as cursor:
+        cursor.execute("SHOW COLUMNS FROM %s" % rtbl)
+        cols = ','.join('v2.%s' % cn[0] for cn in cursor if cn[0] not in ['gtag','resn','rtyp'])
+    
+    sql1 = v1
+    d = 2
+    while d < maxd:
+        sql1 = 'SELECT v1.*, v2.attr attr%(n)s, v2.val val%(n)s, v2.ana ana%(m)s FROM (%(q)s) v1\n\
+join (%(v2)s) v2 on v1.ana%(n)s = v2.subname' % {"n":d, "m":d+1, "q":sql1, "v2":v2}
+        df = pd.read_sql_query(sql1, connections[xdbx])
+        if df.empty: break
+        d += 1
+    
+    ec = ''.join(',""' for i in range(0,(d-1)*3))
+    ob = ','.join('ana%s,val%s' % (i,i) for i in range(1,d+1))
+    
+    s1 = 'select concat(if(t1.epcn="","",concat(t1.epcn,"-")),t1.subname) ana1,\
+v1.attr attr1, v1.val val1 %(ec)s, v1.res from %(stb3)s t1\n\
+join (%(v3)s) v1 on t1.subname = v1.subname where %(c2)s' % {"ec":ec, "c2":c2, "stb3":stb3, "v3":v3}
+    
+    s2 = 'select v1.*, v2.attr attr2, v2.val val2 %(ec)s, v2.res from (%(v1)s) v1\n\
+join (%(v3)s) v2 on v1.ana2 = v2.subname' % {"ec":ec[:-9],"v1":v1, "v3":v3}    
+        
+    sqlq = s2 + '\nUNION ' + s1
+    sql1 = v1
+    n = 2
+    while n < d:
+        sql1 = 'SELECT v1.*, v2.attr attr%(n)s, v2.val val%(n)s, v2.ana ana%(m)s FROM (%(q)s) v1\n\
+join (%(v2)s) v2 on v1.ana%(n)s = v2.subname' % {"n":n, "m":n+1, "q":sql1, "v2":v2}
+        s3 = 'select v1.*, v2.attr attr%(m)s, v2.val val%(m)s %(ec)s, v2.res from (%(q)s) v1\n\
+join (%(v3)s) v2 on v1.ana%(m)s = v2.subname' % {"ec":ec[:-n*9],"m":n+1, "q":sql1, "v3":v3}
+        sqlq = s3 + '\nUNION ' + sqlq
+        n += 1
+    
+    sqlq = 'select v1.*, %s from (%s) v1 join (%s) v2 on v1.res = v2.resn' % (cols,sqlq,v4) 
+    sqlq += '\nORDER BY %s' % ob  
+    
+    return sqlq
+    
+
     

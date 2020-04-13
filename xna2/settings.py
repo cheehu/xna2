@@ -98,6 +98,14 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD'),
         'OPTIONS': {'autocommit': True}
     },
+    'nomadb2': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'nomadb2',
+        'HOSTNAME': 'localhost',
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'OPTIONS': {'autocommit': True}
+    },
     'xnaxdr': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': config('XDB_NAME'),
@@ -109,6 +117,14 @@ DATABASES = {
     'xnaxdr1': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'xnaxdr1',
+        'HOSTNAME': 'localhost',
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'OPTIONS': {'autocommit': True}
+    },
+    'xnaxdr2': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'xnaxdr2',
         'HOSTNAME': 'localhost',
         'USER': config('DB_USER'),
         'PASSWORD': config('DB_PASSWORD'),

@@ -29,9 +29,9 @@ class NomaSet(models.Model):
         ('sq', 'Table/View'),
     )
     type = models.CharField(max_length=2, choices=stypes, default='tx')
-    sepr = models.CharField(max_length=100, blank=True, null=True)
-    eepr = models.CharField(max_length=100, blank=True, null=True)
-    depr = models.CharField(max_length=100, blank=True, null=True)
+    sepr = models.CharField(max_length=200, blank=True, null=True)
+    eepr = models.CharField(max_length=200, blank=True, null=True)
+    depr = models.CharField(max_length=200, blank=True, null=True)
     xtag = models.CharField(max_length=300, blank=True, null=True)
 
     class Meta:    
